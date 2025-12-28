@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cypher Enigma Simulator</title>
+  <!-- Security Headers -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self';">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <button type="button" id="help-btn" class="help-btn" aria-label="ヘルプ">?</button>
+      <h1>Cypher Enigma Simulator</h1>
+      <p class="subtitle">暗号解読ゲーム「Cypher」用の簡易エニグマシミュレーター</p>
+    </header>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="modal" hidden>
+      <div class="modal-overlay"></div>
+      <div class="modal-content modal-confirm">
+        <h2 id="confirm-title">確認</h2>
+        <div class="modal-body">
+          <p id="confirm-message">すべての設定をリセットしますか？</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="confirm-cancel" class="btn-secondary">キャンセル</button>
+          <button type="button" id="confirm-ok" class="btn-danger">リセット</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal" hidden>
+      <div class="modal-overlay"></div>
+      <div class="modal-content">
+        <button type="button" class="modal-close" aria-label="閉じる">&times;</button>
+        <h2>使い方</h2>
+        <div class="modal-body">
+          <h3>概要</h3>
+          <p>このツールは、暗号解読ゲーム「Cypher」のエニグマ風パズルを解くための簡易シミュレーターです。</p>
+
+          <h3>設定項目</h3>
+          <dl>
+            <dt>Plugboard（プラグボード）</dt>
+            <dd>文字ペアを指定して入出力時に文字を交換します。例: <code>A-B, S-Z</code></dd>
+
+            <dt>Scrambler（スクランブラー）</dt>
+            <dd>26文字の配線を指定します。各文字処理前に左シフトします。最大3つまで設定可能。</dd>
+
+            <dt>位置</dt>
+            <dd>スクランブラーの初期位置（A-Z）を指定します。</dd>
+
+            <dt>Reflector（リフレクター）</dt>
+            <dd>信号を折り返す配線です。通常は変更不要。</dd>
+
+            <dt>Mode（モード）</dt>
+            <dd>暗号化/復号を選択します。復号時は逆方向に回転します。</dd>
+          </dl>
+
+          <h3>使用手順</h3>
+          <ol>
+            <li>パズルの指示に従って各設定を入力</li>
+            <li>暗号文または平文を入力テキスト欄に入力</li>
+            <li>「処理実行」ボタンをクリック</li>
+            <li>結果と内部状態ログを確認</li>
+          </ol>
+
+          <h3>ログの見方</h3>
+          <p>内部状態ログでは、各文字の処理過程を視覚的に確認できます：</p>
+          <ul>
+            <li><code>↓</code> : 入力位置</li>
+            <li><code>↑</code> : 出力位置</li>
+            <li>2行表示：上段がアルファベット、下段が配線</li>
+          </ul>
+
+          <h3>注意事項</h3>
+          <ul>
+            <li>A-Z以外の文字はそのまま通過します</li>
+            <li>配線が空またはOFFのコンポーネントは無効になります</li>
+            <li>本ツールは簡略化されており、実際のエニグマとは異なります</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-nav">
+      <button type="button" class="tab-btn active" data-tab="cipher">暗号化・復号</button>
+      <button type="button" class="tab-btn" data-tab="analysis">解析支援</button>
+    </nav>
+
+    <!-- Tab: Cipher -->
+    <div id="tab-cipher" class="tab-panel active">
+      <!-- 1. Settings Section -->
+      <section class="settings">
+      <h2 class="section-title">Settings</h2>
+      <fieldset class="toggleable" data-target="plugboard-inputs">
+        <legend>
+          <label class="toggle-label">
+            <input type="checkbox" id="plugboard-enabled">
+            <span>Plugboard</span>
+          </label>
+        </legend>
+        <div id="plugboard-inputs" class="toggle-content">
+          <label for="plugboard">文字ペア</label>
+          <input type="text" id="plugboard" placeholder="A-B, S-Z, U-Y">
+          <p class="helper-text">未指定の文字はそのまま通過します</p>
+        </div>
+      </fieldset>
+
+      <div class="scramblers-container">
+        <fieldset class="scrambler toggleable">
+          <legend>
+            <label class="toggle-label">
+              <input type="checkbox" id="scrambler1-enabled" checked>
+              <span>Scrambler 1</span>
+            </label>
+          </legend>
+          <div class="scrambler-inputs toggle-content">
+            <div class="preset-group">
+              <label for="preset1">プリセット</label>
+              <select id="preset1" class="preset-select" data-target="wiring1"></select>
+            </div>
+            <div class="wiring-group">
+              <label for="wiring1">配線 (26文字)</label>
+              <input type="text" id="wiring1" class="wiring" maxlength="26" placeholder="EKMFLGDQVZNTOWYHXUSPAIBRCJ">
+            </div>
+            <div class="position-group">
+              <label for="position1">位置</label>
+              <input type="text" id="position1" class="position" maxlength="1" value="A">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="scrambler toggleable">
+          <legend>
+            <label class="toggle-label">
+              <input type="checkbox" id="scrambler2-enabled">
+              <span>Scrambler 2</span>
+            </label>
+          </legend>
+          <div class="scrambler-inputs toggle-content">
+            <div class="preset-group">
+              <label for="preset2">プリセット</label>
+              <select id="preset2" class="preset-select" data-target="wiring2"></select>
+            </div>
+            <div class="wiring-group">
+              <label for="wiring2">配線 (26文字)</label>
+              <input type="text" id="wiring2" class="wiring" maxlength="26" placeholder="AJDKSIRUXBLHWTMCQGZNPYFVOE">
+            </div>
+            <div class="position-group">
+              <label for="position2">位置</label>
+              <input type="text" id="position2" class="position" maxlength="1" value="A">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="scrambler toggleable">
+          <legend>
+            <label class="toggle-label">
+              <input type="checkbox" id="scrambler3-enabled">
+              <span>Scrambler 3</span>
+            </label>
+          </legend>
+          <div class="scrambler-inputs toggle-content">
+            <div class="preset-group">
+              <label for="preset3">プリセット</label>
+              <select id="preset3" class="preset-select" data-target="wiring3"></select>
+            </div>
+            <div class="wiring-group">
+              <label for="wiring3">配線 (26文字)</label>
+              <input type="text" id="wiring3" class="wiring" maxlength="26" placeholder="BDFHJLCPRTXVZNYEIWGAKMUSQO">
+            </div>
+            <div class="position-group">
+              <label for="position3">位置</label>
+              <input type="text" id="position3" class="position" maxlength="1" value="A">
+            </div>
+          </div>
+        </fieldset>
+      </div>
+      <p class="helper-text">配線が空、またはOFFのスクランブラーは無効になります</p>
+
+      <fieldset class="toggleable">
+        <legend>
+          <label class="toggle-label">
+            <input type="checkbox" id="reflector-enabled" checked>
+            <span>Reflector</span>
+          </label>
+        </legend>
+        <div class="toggle-content reflector-inputs">
+          <div class="preset-group">
+            <label for="preset-reflector">プリセット</label>
+            <select id="preset-reflector" class="preset-select" data-target="reflector" data-type="reflector"></select>
+          </div>
+          <div class="wiring-group">
+            <label for="reflector">配線 (26文字)</label>
+            <input type="text" id="reflector" maxlength="26" value="YRUHQSLDPXNGOKMIEBFZCWVJAT">
+          </div>
+          <p class="helper-text">上級者向け設定</p>
+        </div>
+      </fieldset>
+
+      <fieldset class="mode-toggle">
+        <legend>Mode</legend>
+        <label>
+          <input type="radio" name="mode" value="encrypt" checked>
+          暗号化 (Encrypt)
+        </label>
+        <label>
+          <input type="radio" name="mode" value="decrypt">
+          復号 (Decrypt)
+        </label>
+        <p class="helper-text">復号モードでは逆方向に回転します</p>
+      </fieldset>
+    </section>
+
+    <!-- Error Messages -->
+    <div id="error-messages" class="error-messages" hidden></div>
+
+    <!-- 2. Input Section -->
+    <section class="input-section">
+      <label for="input-text">入力テキスト</label>
+      <textarea id="input-text" placeholder="暗号化/復号するテキストを入力..."></textarea>
+    </section>
+
+    <!-- 3. Process Button -->
+    <div class="action-buttons">
+      <button type="button" id="process-btn" class="btn-primary">処理実行</button>
+      <button type="button" id="share-btn" class="btn-secondary">設定URLをコピー</button>
+      <button type="button" id="reset-btn" class="btn-danger">リセット</button>
+    </div>
+
+    <!-- 4. Results Section -->
+    <section class="results-section">
+      <div class="output-area">
+        <div class="area-header">
+          <label for="output-text">出力テキスト</label>
+          <button type="button" class="copy-btn" data-target="output-text">コピー</button>
+        </div>
+        <textarea id="output-text" readonly placeholder="結果がここに表示されます"></textarea>
+      </div>
+
+      <div class="log-area">
+        <div class="area-header">
+          <label for="log-output">内部状態ログ</label>
+          <button type="button" class="copy-btn" data-target="log-output">コピー</button>
+        </div>
+        <pre id="log-output"></pre>
+      </div>
+    </section>
+    </div>
+
+    <!-- Tab: Analysis -->
+    <div id="tab-analysis" class="tab-panel">
+      <section class="analysis-placeholder">
+        <h2 class="section-title">解析支援</h2>
+        <p class="placeholder-message">この機能は現在開発中です。</p>
+        <ul class="planned-features">
+          <li>入出力ペアからの設定推測</li>
+          <li>ブルートフォース探索</li>
+          <li>頻度分析</li>
+        </ul>
+      </section>
+    </div>
+
+    <footer class="footer">
+      🔗 GitHubリポジトリはこちら（ <a href="https://github.com/ipusiron/cypher-enigma-simulator" target="_blank" rel="noopener noreferrer">ipusiron/cypher-enigma-simulator</a> ）
+    </footer>
+  </main>
+
+  <script src="main.js"></script>
+</body>
+</html>

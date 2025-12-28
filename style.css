@@ -1,0 +1,758 @@
+/* =================================
+   1. Reset & Base Styles
+   ================================= */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  background-color: #f5f5f5;
+  color: #222;
+}
+
+/* =================================
+   2. Layout - Container
+   ================================= */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* =================================
+   3. Header
+   ================================= */
+header {
+  position: relative;
+  padding: 1.5rem 1.5rem 1.25rem;
+  margin: -1rem -1rem 0;
+  text-align: center;
+  border-bottom: 2px solid #ddd;
+}
+
+header h1 {
+  font-size: 1.5rem;
+  margin: 0 0 0.25rem;
+  color: #1a1a2e;
+  letter-spacing: 0.05em;
+}
+
+header .subtitle {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Help Button */
+.help-btn {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid #999;
+  border-radius: 50%;
+  background: transparent;
+  color: #666;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.help-btn:hover {
+  background-color: #4a90d9;
+  border-color: #4a90d9;
+  color: #fff;
+}
+
+/* =================================
+   3.5 Tab Navigation
+   ================================= */
+.tab-nav {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid #ddd;
+  margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: #4a90d9;
+}
+
+.tab-btn.active {
+  color: #4a90d9;
+  border-bottom-color: #4a90d9;
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Analysis Placeholder */
+.analysis-placeholder {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.placeholder-message {
+  color: #666;
+  font-size: 1.1rem;
+  margin: 1rem 0;
+}
+
+.planned-features {
+  display: inline-block;
+  text-align: left;
+  color: #888;
+  margin: 1rem 0 0;
+  padding-left: 1.5rem;
+}
+
+.planned-features li {
+  margin: 0.5rem 0;
+}
+
+/* =================================
+   3.6 Modal
+   ================================= */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.modal-content {
+  position: relative;
+  background-color: #fff;
+  border-radius: 0.5rem;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.modal-content h2 {
+  margin: 0;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #ddd;
+  font-size: 1.25rem;
+  color: #1a1a2e;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.modal-body h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+  color: #1a1a2e;
+}
+
+.modal-body h3:first-child {
+  margin-top: 0;
+}
+
+.modal-body p,
+.modal-body ul,
+.modal-body ol,
+.modal-body dl {
+  margin: 0.5rem 0;
+}
+
+.modal-body dt {
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.modal-body dd {
+  margin-left: 1rem;
+  color: #555;
+}
+
+.modal-body code {
+  background-color: #f0f0f0;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.2rem;
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: 0.85em;
+}
+
+.modal-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  color: #666;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #000;
+}
+
+/* Confirm Modal */
+.modal-confirm {
+  max-width: 400px;
+  text-align: center;
+}
+
+.modal-confirm h2 {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.modal-confirm .modal-body {
+  padding: 1rem 1.5rem 1.5rem;
+}
+
+.modal-confirm .modal-body p {
+  font-size: 1rem;
+  color: #333;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0 1.5rem 1.5rem;
+}
+
+.modal-actions .btn-secondary,
+.modal-actions .btn-danger {
+  min-width: 100px;
+}
+
+/* =================================
+   4. Typography
+   ================================= */
+
+label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+/* =================================
+   4. Form Elements
+   ================================= */
+fieldset {
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 0;
+  background: #fff;
+}
+
+legend {
+  font-weight: 600;
+  padding: 0 0.5rem;
+  color: #1a1a2e;
+}
+
+input[type="text"],
+textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  font-family: "Consolas", "Monaco", monospace;
+}
+
+input[type="text"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+textarea[readonly] {
+  background-color: #f9f9f9;
+}
+
+.helper-text {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0.5rem 0 0;
+}
+
+/* Error Styles */
+.input-error {
+  border-color: #dc3545 !important;
+  background-color: #fff5f5;
+}
+
+.input-error:focus {
+  box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2) !important;
+}
+
+.error-messages {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  color: #721c24;
+  font-size: 0.9rem;
+  white-space: pre-line;
+}
+
+.error-messages[hidden] {
+  display: none;
+}
+
+/* =================================
+   6. Settings Section
+   ================================= */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.section-title {
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #4a90d9;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+/* Scramblers */
+.scramblers-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.scrambler-inputs {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.wiring-group {
+  flex: 1;
+}
+
+.position-group {
+  width: 3.5rem;
+}
+
+.position-group input {
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.wiring {
+  text-transform: uppercase;
+}
+
+/* Preset Select */
+.preset-group {
+  width: 100%;
+}
+
+.preset-select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 0.25rem;
+  font-size: 0.9rem;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.preset-select:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+/* Reflector Inputs */
+.reflector-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reflector-inputs .preset-group {
+  max-width: 200px;
+}
+
+/* Mode Toggle */
+.mode-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.mode-toggle legend {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.mode-toggle label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  font-weight: normal;
+  margin-bottom: 0;
+}
+
+.mode-toggle input[type="radio"] {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+}
+
+.mode-toggle .helper-text {
+  width: 100%;
+}
+
+/* Toggleable Fieldsets */
+.toggleable {
+  transition: opacity 0.2s, background-color 0.2s;
+}
+
+.toggleable.disabled {
+  opacity: 0.5;
+  background-color: #f0f0f0;
+}
+
+.toggleable.disabled .toggle-content {
+  pointer-events: none;
+}
+
+.toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 0;
+}
+
+.toggle-label input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  accent-color: #4a90d9;
+}
+
+.toggle-label span {
+  user-select: none;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  flex-wrap: wrap;
+}
+
+.action-buttons .btn-danger {
+  margin-left: 2rem;
+}
+
+.btn-primary {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background-color: #4a90d9;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-secondary {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #4a90d9;
+  background-color: transparent;
+  border: 2px solid #4a90d9;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: #4a90d9;
+  color: #fff;
+}
+
+.btn-secondary.copied {
+  background-color: #28a745;
+  border-color: #28a745;
+  color: #fff;
+}
+
+.btn-danger {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #dc3545;
+  background-color: transparent;
+  border: 2px solid #dc3545;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-danger:hover {
+  background-color: #dc3545;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background-color: #3a7bc8;
+}
+
+.btn-primary:active {
+  background-color: #2d6cb5;
+}
+
+/* =================================
+   6. Action Buttons (standalone)
+   ================================= */
+
+/* =================================
+   7. Input Section
+   ================================= */
+.input-section {
+  display: flex;
+  flex-direction: column;
+}
+
+/* =================================
+   8. Results Section
+   ================================= */
+.results-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.output-area {
+  display: flex;
+  flex-direction: column;
+}
+
+.log-area {
+  display: flex;
+  flex-direction: column;
+}
+
+.area-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.area-header label {
+  margin-bottom: 0;
+}
+
+.copy-btn {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #4a90d9;
+  background-color: transparent;
+  border: 1px solid #4a90d9;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.copy-btn:hover {
+  background-color: #4a90d9;
+  color: #fff;
+}
+
+.copy-btn.copied {
+  background-color: #28a745;
+  border-color: #28a745;
+  color: #fff;
+}
+
+.log-area pre {
+  background: #1a1a2e;
+  color: #e0e0e0;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow: auto;
+  font-size: 0.8rem;
+  font-family: "Consolas", "Monaco", monospace;
+  line-height: 1.5;
+  white-space: pre;
+  min-height: 10rem;
+  max-height: 30rem;
+  margin: 0;
+}
+
+.log-area pre:empty::before {
+  content: "処理ログがここに表示されます";
+  color: #666;
+}
+
+/* =================================
+   9. Footer
+   ================================= */
+.footer {
+  text-align: center;
+  padding: 1.25rem 1.5rem;
+  margin: 1rem -1rem -1rem;
+  color: #666;
+  font-size: 0.85rem;
+  border-top: 2px solid #ddd;
+}
+
+.footer a {
+  color: #4a90d9;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.footer a:hover {
+  color: #2d6cb5;
+  text-decoration: underline;
+}
+
+/* =================================
+   10. Media Queries (Tablet 600px+)
+   ================================= */
+@media (min-width: 600px) {
+  header h1 {
+    font-size: 1.75rem;
+  }
+
+  .scramblers-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .scrambler-inputs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .position-group {
+    width: 100%;
+  }
+}
+
+/* =================================
+   11. Media Queries (PC 900px+)
+   ================================= */
+@media (min-width: 900px) {
+  .container {
+    padding: 2rem;
+  }
+
+  header {
+    margin: -2rem -2rem 0;
+    padding: 2rem 2rem 1.5rem;
+  }
+
+  header h1 {
+    font-size: 1.75rem;
+  }
+
+  .footer {
+    margin: 1.5rem -2rem -2rem;
+    padding: 1.5rem 2rem;
+  }
+
+  textarea {
+    min-height: 8rem;
+  }
+
+  .log-area pre {
+    font-size: 0.875rem;
+  }
+}
