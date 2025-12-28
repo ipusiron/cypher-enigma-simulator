@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Cypher Enigma Simulator - a simplified Enigma-style cipher simulator for solving and analyzing Cypher puzzle challenges. This is an educational/analytical tool, NOT a historically accurate Enigma machine.
 
-**Intentionally omitted features:** Ring settings, notches/double-stepping, military variants.
+**Intentionally omitted features:** Ring settings, double-stepping, military variants.
 
 ## Tech Stack
 
@@ -37,7 +37,9 @@ start index.html
 ### Key Components
 
 - **Plugboard**: Bidirectional letter pair substitution (e.g., `A-B, S-Z`)
-- **Scramblers (1-3)**: Each has 26-char wiring and starting position (A-Z)
+- **Scramblers (1-3)**: Each has 26-char wiring, starting position (A-Z), and notch position (A-Z, default Z)
+  - Drag-and-drop reordering supported
+  - When a scrambler passes its notch position, the next scrambler rotates (cascade)
 - **Reflector**: 26-char substitution string (self-inverse)
 
 ### Mode Difference

@@ -49,10 +49,18 @@
             <dd>文字ペアを指定して入出力時に文字を交換します。例: <code>A-B, S-Z</code></dd>
 
             <dt>Scrambler（スクランブラー）</dt>
-            <dd>26文字の配線を指定します。各文字処理前に左シフトします。最大3つまで設定可能。</dd>
+            <dd>26文字の配線を指定します。各文字処理前に回転します。最大3つまで設定可能。ドラッグハンドル（☰）をドラッグして順序を変更できます。並び替えても元のラベル番号（Scrambler 1, 2, 3）は維持されます。</dd>
 
             <dt>位置</dt>
             <dd>スクランブラーの初期位置（A-Z）を指定します。</dd>
+
+            <dt>ノッチ</dt>
+            <dd>カスケード回転（連動回転）の設定です。
+              <ul>
+                <li><strong>ON</strong>: 前段スクランブラーが設定位置を超えると次段が1回転</li>
+                <li><strong>OFF</strong>: 26回で1回転（従来動作）</li>
+              </ul>
+              <strong>注意</strong>: ノッチは「次のスクランブラー」の回転タイミングを決定します。最後のスクランブラーのノッチは効果がありません。</dd>
 
             <dt>Reflector（リフレクター）</dt>
             <dd>信号を折り返す配線です。通常は変更不要。</dd>
@@ -135,8 +143,11 @@
       </fieldset>
 
       <div class="scramblers-container">
-        <fieldset class="scrambler toggleable">
+        <fieldset class="scrambler toggleable" data-scrambler-id="1">
           <legend>
+            <button type="button" class="drag-handle" aria-label="ドラッグして並び替え">
+              <span class="drag-handle-icon">&#x2630;</span>
+            </button>
             <label class="toggle-label">
               <input type="checkbox" id="scrambler1-enabled" checked>
               <span>Scrambler 1</span>
@@ -155,11 +166,21 @@
               <label for="position1">位置</label>
               <input type="text" id="position1" class="position" maxlength="1" value="A">
             </div>
+            <div class="notch-group">
+              <label class="notch-toggle-label">
+                <input type="checkbox" id="notch1-enabled" class="notch-toggle" checked>
+                <span>ノッチ</span>
+              </label>
+              <input type="text" id="notch1" class="notch" maxlength="1" value="Z">
+            </div>
           </div>
         </fieldset>
 
-        <fieldset class="scrambler toggleable">
+        <fieldset class="scrambler toggleable" data-scrambler-id="2">
           <legend>
+            <button type="button" class="drag-handle" aria-label="ドラッグして並び替え">
+              <span class="drag-handle-icon">&#x2630;</span>
+            </button>
             <label class="toggle-label">
               <input type="checkbox" id="scrambler2-enabled">
               <span>Scrambler 2</span>
@@ -178,11 +199,21 @@
               <label for="position2">位置</label>
               <input type="text" id="position2" class="position" maxlength="1" value="A">
             </div>
+            <div class="notch-group">
+              <label class="notch-toggle-label">
+                <input type="checkbox" id="notch2-enabled" class="notch-toggle" checked>
+                <span>ノッチ</span>
+              </label>
+              <input type="text" id="notch2" class="notch" maxlength="1" value="Z">
+            </div>
           </div>
         </fieldset>
 
-        <fieldset class="scrambler toggleable">
+        <fieldset class="scrambler toggleable" data-scrambler-id="3">
           <legend>
+            <button type="button" class="drag-handle" aria-label="ドラッグして並び替え">
+              <span class="drag-handle-icon">&#x2630;</span>
+            </button>
             <label class="toggle-label">
               <input type="checkbox" id="scrambler3-enabled">
               <span>Scrambler 3</span>
@@ -201,10 +232,17 @@
               <label for="position3">位置</label>
               <input type="text" id="position3" class="position" maxlength="1" value="A">
             </div>
+            <div class="notch-group">
+              <label class="notch-toggle-label">
+                <input type="checkbox" id="notch3-enabled" class="notch-toggle" checked>
+                <span>ノッチ</span>
+              </label>
+              <input type="text" id="notch3" class="notch" maxlength="1" value="Z">
+            </div>
           </div>
         </fieldset>
       </div>
-      <p class="helper-text">配線が空、またはOFFのスクランブラーは無効になります</p>
+      <p class="helper-text">配線が空、またはOFFのスクランブラーは無効になります。2番目以降のスクランブラーは、前段がノッチ位置を超えると1回転します（ノッチOFF時は26回で1回転）。</p>
 
       <fieldset class="toggleable">
         <legend>
@@ -301,8 +339,11 @@
 
           <!-- Scramblers -->
           <div class="attack-scramblers">
-            <fieldset class="attack-fieldset toggleable">
+            <fieldset class="attack-fieldset toggleable" data-attack-scrambler-id="1">
               <legend>
+                <button type="button" class="drag-handle" aria-label="ドラッグして並び替え">
+                  <span class="drag-handle-icon">&#x2630;</span>
+                </button>
                 <label class="toggle-label">
                   <input type="checkbox" id="attack-scrambler1-enabled" checked>
                   <span>Scrambler 1</span>
@@ -311,11 +352,21 @@
               <div class="toggle-content scrambler-row">
                 <select id="attack-preset1" class="attack-preset-select" data-target="attack-wiring1"></select>
                 <input type="text" id="attack-wiring1" class="wiring" maxlength="26" placeholder="26文字の配線">
+                <div class="attack-notch-group">
+                  <label class="notch-toggle-label">
+                    <input type="checkbox" id="attack-notch1-enabled" class="notch-toggle" checked>
+                    <span>ノッチ</span>
+                  </label>
+                  <input type="text" id="attack-notch1" class="notch" maxlength="1" value="Z">
+                </div>
               </div>
             </fieldset>
 
-            <fieldset class="attack-fieldset toggleable">
+            <fieldset class="attack-fieldset toggleable" data-attack-scrambler-id="2">
               <legend>
+                <button type="button" class="drag-handle" aria-label="ドラッグして並び替え">
+                  <span class="drag-handle-icon">&#x2630;</span>
+                </button>
                 <label class="toggle-label">
                   <input type="checkbox" id="attack-scrambler2-enabled">
                   <span>Scrambler 2</span>
@@ -324,11 +375,21 @@
               <div class="toggle-content scrambler-row">
                 <select id="attack-preset2" class="attack-preset-select" data-target="attack-wiring2"></select>
                 <input type="text" id="attack-wiring2" class="wiring" maxlength="26" placeholder="26文字の配線">
+                <div class="attack-notch-group">
+                  <label class="notch-toggle-label">
+                    <input type="checkbox" id="attack-notch2-enabled" class="notch-toggle" checked>
+                    <span>ノッチ</span>
+                  </label>
+                  <input type="text" id="attack-notch2" class="notch" maxlength="1" value="Z">
+                </div>
               </div>
             </fieldset>
 
-            <fieldset class="attack-fieldset toggleable">
+            <fieldset class="attack-fieldset toggleable" data-attack-scrambler-id="3">
               <legend>
+                <button type="button" class="drag-handle" aria-label="ドラッグして並び替え">
+                  <span class="drag-handle-icon">&#x2630;</span>
+                </button>
                 <label class="toggle-label">
                   <input type="checkbox" id="attack-scrambler3-enabled">
                   <span>Scrambler 3</span>
@@ -337,6 +398,13 @@
               <div class="toggle-content scrambler-row">
                 <select id="attack-preset3" class="attack-preset-select" data-target="attack-wiring3"></select>
                 <input type="text" id="attack-wiring3" class="wiring" maxlength="26" placeholder="26文字の配線">
+                <div class="attack-notch-group">
+                  <label class="notch-toggle-label">
+                    <input type="checkbox" id="attack-notch3-enabled" class="notch-toggle" checked>
+                    <span>ノッチ</span>
+                  </label>
+                  <input type="text" id="attack-notch3" class="notch" maxlength="1" value="Z">
+                </div>
               </div>
             </fieldset>
           </div>

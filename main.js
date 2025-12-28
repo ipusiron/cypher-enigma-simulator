@@ -66,8 +66,11 @@ function saveSettings() {
       scramblers: [1, 2, 3].map(i => ({
         wiring: sanitizeInput(document.getElementById(`wiring${i}`).value, 'wiring'),
         position: sanitizeInput(document.getElementById(`position${i}`).value, 'position'),
+        notch: sanitizeInput(document.getElementById(`notch${i}`)?.value || 'Z', 'position'),
+        notchEnabled: document.getElementById(`notch${i}-enabled`)?.checked ?? true,
         enabled: !!document.getElementById(`scrambler${i}-enabled`).checked
       })),
+      scramblerOrder: typeof getScramblerOrder === 'function' ? getScramblerOrder(false) : [1, 2, 3],
       reflector: sanitizeInput(document.getElementById('reflector').value, 'wiring'),
       reflectorEnabled: !!document.getElementById('reflector-enabled').checked,
       mode: document.querySelector('input[name="mode"]:checked')?.value === 'decrypt' ? 'decrypt' : 'encrypt'
@@ -97,6 +100,11 @@ function resetSettings() {
   for (let i = 1; i <= 3; i++) {
     document.getElementById(`wiring${i}`).value = '';
     document.getElementById(`position${i}`).value = 'A';
+    // Reset notch to default (Z) and enabled
+    const notchEl = document.getElementById(`notch${i}`);
+    if (notchEl) notchEl.value = 'Z';
+    const notchEnabledEl = document.getElementById(`notch${i}-enabled`);
+    if (notchEnabledEl) notchEnabledEl.checked = true;
     // Scrambler 1 is ON by default, 2 and 3 are OFF
     document.getElementById(`scrambler${i}-enabled`).checked = (i === 1);
     // Reset preset selector
@@ -129,6 +137,14 @@ function resetSettings() {
     const checkbox = document.getElementById(id);
     if (checkbox) updateToggleState(checkbox);
   });
+
+  // Reset scrambler order to default
+  if (typeof setScramblerOrder === 'function') {
+    setScramblerOrder([1, 2, 3], false);
+    setScramblerOrder([1, 2, 3], true);
+    reorderDOMFromState(false);
+    reorderDOMFromState(true);
+  }
 
   // Clear URL parameters
   if (window.history.replaceState) {
@@ -166,6 +182,16 @@ function loadSettings() {
         if (s.position !== undefined) {
           document.getElementById(`position${idx}`).value = sanitizeInput(s.position, 'position');
         }
+        // Load notch (default to 'Z' if not set)
+        const notchEl = document.getElementById(`notch${idx}`);
+        if (notchEl) {
+          notchEl.value = sanitizeInput(s.notch || 'Z', 'position');
+        }
+        // Load notch enabled state (default to true)
+        const notchEnabledEl = document.getElementById(`notch${idx}-enabled`);
+        if (notchEnabledEl) {
+          notchEnabledEl.checked = s.notchEnabled !== false;
+        }
         if (typeof s.enabled === 'boolean') {
           document.getElementById(`scrambler${idx}-enabled`).checked = s.enabled;
         }
@@ -182,6 +208,16 @@ function loadSettings() {
     if (settings.mode === 'decrypt' || settings.mode === 'encrypt') {
       const radio = document.querySelector(`input[name="mode"][value="${settings.mode}"]`);
       if (radio) radio.checked = true;
+    }
+
+    // Load scrambler order
+    if (Array.isArray(settings.scramblerOrder) &&
+        settings.scramblerOrder.length === 3 &&
+        settings.scramblerOrder.every(id => [1, 2, 3].includes(id)) &&
+        new Set(settings.scramblerOrder).size === 3) {
+      if (typeof setScramblerOrder === 'function') {
+        setScramblerOrder(settings.scramblerOrder, false);
+      }
     }
   } catch (e) {
     console.warn('Failed to load settings:', e);
@@ -212,6 +248,8 @@ function generateShareURL() {
   for (let i = 1; i <= 3; i++) {
     const wiring = document.getElementById(`wiring${i}`).value.trim();
     const position = document.getElementById(`position${i}`).value.trim();
+    const notchEl = document.getElementById(`notch${i}`);
+    const notch = notchEl ? notchEl.value.trim().toUpperCase() : 'Z';
     const enabled = document.getElementById(`scrambler${i}-enabled`).checked;
 
     if (wiring) {
@@ -219,6 +257,15 @@ function generateShareURL() {
     }
     if (position && position !== 'A') {
       params.set(`p${i}`, sanitizeInput(position, 'position'));
+    }
+    // Only include notch if not default (Z)
+    if (notch && notch !== 'Z') {
+      params.set(`n${i}`, sanitizeInput(notch, 'position'));
+    }
+    // Include notch enabled state (only if disabled, since default is enabled)
+    const notchEnabledEl = document.getElementById(`notch${i}-enabled`);
+    if (notchEnabledEl && !notchEnabledEl.checked) {
+      params.set(`ne${i}`, '0');
     }
     if (!enabled) {
       params.set(`e${i}`, '0');
@@ -237,6 +284,14 @@ function generateShareURL() {
 
   if (document.querySelector('input[name="mode"]:checked')?.value === 'decrypt') {
     params.set('m', 'd');
+  }
+
+  // Scrambler order (only if not default)
+  if (typeof getScramblerOrder === 'function') {
+    const order = getScramblerOrder(false);
+    if (order.join('') !== '123') {
+      params.set('so', order.join(''));
+    }
   }
 
   const url = new URL(window.location.href.split('?')[0]);
@@ -268,6 +323,20 @@ function loadFromURL() {
       if (params.has(`p${i}`)) {
         document.getElementById(`position${i}`).value = sanitizeInput(params.get(`p${i}`), 'position');
       }
+      // Load notch (n1, n2, n3)
+      if (params.has(`n${i}`)) {
+        const notchEl = document.getElementById(`notch${i}`);
+        if (notchEl) {
+          notchEl.value = sanitizeInput(params.get(`n${i}`), 'position');
+        }
+      }
+      // Load notch enabled state (ne1, ne2, ne3)
+      if (params.get(`ne${i}`) === '0') {
+        const notchEnabledEl = document.getElementById(`notch${i}-enabled`);
+        if (notchEnabledEl) {
+          notchEnabledEl.checked = false;
+        }
+      }
       if (params.get(`e${i}`) === '0') {
         document.getElementById(`scrambler${i}-enabled`).checked = false;
       }
@@ -285,6 +354,18 @@ function loadFromURL() {
     if (params.get('m') === 'd') {
       const radio = document.querySelector('input[name="mode"][value="decrypt"]');
       if (radio) radio.checked = true;
+    }
+
+    // Scrambler order
+    if (params.has('so')) {
+      const orderStr = params.get('so');
+      if (/^[123]{3}$/.test(orderStr)) {
+        const order = orderStr.split('').map(Number);
+        // Validate all unique
+        if (new Set(order).size === 3 && typeof setScramblerOrder === 'function') {
+          setScramblerOrder(order, false);
+        }
+      }
     }
 
     return true;
@@ -449,7 +530,7 @@ function applyPlugboard(char, map) {
  * @param {string} position - Starting position (A-Z)
  * @returns {Object|null} Scrambler object or null if disabled
  */
-function createScrambler(wiring, position) {
+function createScrambler(wiring, position, notch = 'Z', notchEnabled = true, originalId = null) {
   if (!wiring || wiring.length !== 26) return null;
 
   const normalizedWiring = wiring.toUpperCase();
@@ -460,13 +541,20 @@ function createScrambler(wiring, position) {
   const pos = ALPHABET.indexOf((position || 'A').toUpperCase());
   if (pos === -1) return null;
 
+  // Parse notch position (default to Z = 25)
+  const notchPos = ALPHABET.indexOf((notch || 'Z').toUpperCase());
+  const validNotch = notchPos !== -1 ? notchPos : 25;
+
   // Pre-rotate wiring if starting position is not A
   const initialWiring = pos === 0 ? normalizedWiring : rotateWiringLeft(normalizedWiring, pos);
 
   return {
     baseWiring: normalizedWiring,
     wiring: initialWiring,
-    position: pos // 0-25
+    position: pos, // 0-25
+    notch: validNotch, // 0-25 (default Z=25)
+    notchEnabled: notchEnabled, // whether notch triggers cascade
+    originalId: originalId // original scrambler number (1, 2, or 3)
   };
 }
 
@@ -686,19 +774,42 @@ function rotateActiveScramblers(scramblers, direction) {
   // Always rotate first rotor
   rotateScrambler(scramblers[0], direction);
 
-  // Check for cascade
+  // Check for cascade based on notch position
+  // When scrambler i passes its notch position, scrambler i+1 rotates
+  // Notch only applies if the PREVIOUS scrambler has notchEnabled
   for (let i = 0; i < scramblers.length - 1; i++) {
-    const shouldCascade = direction === 1
-      ? (prevPositions[i] === 25 && scramblers[i].position === 0)
-      : (prevPositions[i] === 0 && scramblers[i].position === 25);
+    // Check if this scrambler's notch is enabled
+    const notchEnabled = scramblers[i].notchEnabled !== false;
 
-    if (shouldCascade) {
-      const prevPos = scramblers[i + 1].position;
-      rotateScrambler(scramblers[i + 1], direction);
-      // Update for next cascade check
-      prevPositions[i + 1] = prevPos;
+    if (!notchEnabled) {
+      // Notch disabled: use classic 26-rotation cascade (position 25 = Z)
+      const shouldCascade = direction === 1
+        ? (prevPositions[i] === 25 && scramblers[i].position === 0)
+        : (prevPositions[i] === 0 && scramblers[i].position === 25);
+
+      if (shouldCascade) {
+        const prevPos = scramblers[i + 1].position;
+        rotateScrambler(scramblers[i + 1], direction);
+        prevPositions[i + 1] = prevPos;
+      } else {
+        break;
+      }
     } else {
-      break; // No cascade, stop checking
+      // Notch enabled: use configured notch position
+      const notch = scramblers[i].notch !== undefined ? scramblers[i].notch : 25;
+      const afterNotch = (notch + 1) % 26;
+
+      const shouldCascade = direction === 1
+        ? (prevPositions[i] === notch && scramblers[i].position === afterNotch)
+        : (prevPositions[i] === afterNotch && scramblers[i].position === notch);
+
+      if (shouldCascade) {
+        const prevPos = scramblers[i + 1].position;
+        rotateScrambler(scramblers[i + 1], direction);
+        prevPositions[i + 1] = prevPos;
+      } else {
+        break;
+      }
     }
   }
 }
@@ -715,13 +826,17 @@ function rotateActiveScramblers(scramblers, direction) {
 function initializeState(settings) {
   const scramblers = [];
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < settings.scramblers.length; i++) {
+    const s = settings.scramblers[i];
     // Skip if disabled by toggle
-    if (!settings.scramblers[i].enabled) continue;
+    if (!s.enabled) continue;
 
     const scrambler = createScrambler(
-      settings.scramblers[i].wiring,
-      settings.scramblers[i].position
+      s.wiring,
+      s.position,
+      s.notch || 'Z',
+      s.notchEnabled !== false, // default to true
+      s.id || (i + 1) // original scrambler ID
     );
     if (scrambler) {
       scramblers.push(scrambler);
@@ -883,6 +998,7 @@ function processChar(char, state, logEntries) {
   // Scrambler display (forward direction)
   for (let i = 0; i < scramblers.length; i++) {
     const s = scramblers[i];
+    const scramblerLabel = s.originalId || (i + 1);
     const pos = s.position;
     const fwdIn = forwardPositions[i];
     const fwdOut = forwardPositions[i + 1];
@@ -891,7 +1007,7 @@ function processChar(char, state, logEntries) {
 
     logLines.push(createArrowLine(fwdIn, revOut));
     logLines.push(shiftAlphabet(pos));
-    logLines.push(s.wiring + `　←スクランブラー${i + 1}（左に${pos}文字分シフト済）`);
+    logLines.push(s.wiring + `　←スクランブラー${scramblerLabel}（左に${pos}文字分シフト済）`);
     logLines.push(createArrowLine(fwdOut, revIn));
   }
 
@@ -926,8 +1042,11 @@ function generateInitialStateLog(state) {
   // Show each scrambler in initial (unshifted) state
   for (let i = 0; i < scramblers.length; i++) {
     const s = scramblers[i];
+    const scramblerLabel = s.originalId || (i + 1);
+    const notchChar = ALPHABET[s.notch !== undefined ? s.notch : 25];
+    const notchStatus = s.notchEnabled !== false ? `ノッチ: ${notchChar}` : 'ノッチ: OFF';
     lines.push(ALPHABET);
-    lines.push(s.baseWiring + `　←スクランブラー${i + 1}（一致する文字が配線される）`);
+    lines.push(s.baseWiring + `　←スクランブラー${scramblerLabel}（${notchStatus}）`);
     lines.push('');
   }
 
@@ -948,11 +1067,14 @@ function generateInitialStateLog(state) {
 
   for (let i = 0; i < scramblers.length; i++) {
     const s = scramblers[i];
+    const scramblerLabel = s.originalId || (i + 1);
     const posChar = ALPHABET[s.position];
+    const notchChar = ALPHABET[s.notch !== undefined ? s.notch : 25];
+    const notchStatus = s.notchEnabled !== false ? `ノッチ: ${notchChar}` : 'ノッチ: OFF';
     // Show shifted alphabet to indicate position
     const shiftedAlphabet = ALPHABET.slice(s.position) + ALPHABET.slice(0, s.position);
-    lines.push(shiftedAlphabet + `　←シフト後（開始位置: ${posChar}）`);
-    lines.push(s.wiring + `　←スクランブラー${i + 1}`);
+    lines.push(shiftedAlphabet + `　←シフト後（開始位置: ${posChar}、${notchStatus}）`);
+    lines.push(s.wiring + `　←スクランブラー${scramblerLabel}`);
     lines.push('');
   }
 
@@ -1009,29 +1131,23 @@ function processText(text, settings) {
  * @returns {Object} Settings object
  */
 function getSettings() {
+  // Get scramblers in current visual order
+  const order = getScramblerOrder(false);
   return {
     plugboard: document.getElementById('plugboard').value,
     plugboardEnabled: document.getElementById('plugboard-enabled').checked,
-    scramblers: [
-      {
-        wiring: document.getElementById('wiring1').value,
-        position: document.getElementById('position1').value,
-        enabled: document.getElementById('scrambler1-enabled').checked
-      },
-      {
-        wiring: document.getElementById('wiring2').value,
-        position: document.getElementById('position2').value,
-        enabled: document.getElementById('scrambler2-enabled').checked
-      },
-      {
-        wiring: document.getElementById('wiring3').value,
-        position: document.getElementById('position3').value,
-        enabled: document.getElementById('scrambler3-enabled').checked
-      }
-    ],
+    scramblers: order.map(id => ({
+      id: id, // original scrambler ID (1, 2, or 3)
+      wiring: document.getElementById(`wiring${id}`).value,
+      position: document.getElementById(`position${id}`).value,
+      notch: document.getElementById(`notch${id}`)?.value || 'Z',
+      notchEnabled: document.getElementById(`notch${id}-enabled`)?.checked ?? true,
+      enabled: document.getElementById(`scrambler${id}-enabled`).checked
+    })),
     reflector: document.getElementById('reflector').value,
     reflectorEnabled: document.getElementById('reflector-enabled').checked,
-    mode: document.querySelector('input[name="mode"]:checked').value
+    mode: document.querySelector('input[name="mode"]:checked').value,
+    scramblerOrder: order
   };
 }
 
@@ -1355,6 +1471,516 @@ function setupAutoSave() {
   });
 }
 
+// =================================
+// Drag-and-Drop Reorder Module
+// =================================
+
+// Scrambler order state
+let scramblerOrder = [1, 2, 3];
+let attackScramblerOrder = [1, 2, 3];
+
+// Drag state
+let dragState = {
+  isDragging: false,
+  draggedElement: null,
+  draggedId: null,
+  startX: 0,
+  startY: 0,
+  ghost: null,
+  container: null,
+  isAttackTab: false
+};
+
+/**
+ * Gets current scrambler order
+ * @param {boolean} isAttackTab - Whether this is the attack tab
+ * @returns {number[]} Array of scrambler IDs in current order
+ */
+function getScramblerOrder(isAttackTab) {
+  return isAttackTab ? [...attackScramblerOrder] : [...scramblerOrder];
+}
+
+/**
+ * Sets scrambler order
+ * @param {number[]} order - New order array
+ * @param {boolean} isAttackTab - Whether this is the attack tab
+ */
+function setScramblerOrder(order, isAttackTab) {
+  if (isAttackTab) {
+    attackScramblerOrder = [...order];
+  } else {
+    scramblerOrder = [...order];
+  }
+}
+
+/**
+ * Initializes drag-and-drop for a container
+ * @param {HTMLElement} container - The container element
+ * @param {boolean} isAttackTab - Whether this is the attack tab
+ */
+function initDragAndDrop(container, isAttackTab) {
+  const selector = isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+  const items = container.querySelectorAll(selector);
+
+  items.forEach(item => {
+    const handle = item.querySelector('.drag-handle');
+    if (!handle) return;
+
+    // Mouse events
+    handle.addEventListener('mousedown', (e) => startDrag(e, item, container, isAttackTab));
+
+    // Touch events
+    handle.addEventListener('touchstart', (e) => startTouchDrag(e, item, container, isAttackTab), { passive: false });
+
+    // Keyboard accessibility
+    handle.addEventListener('keydown', (e) => handleKeyboardReorder(e, item, container, isAttackTab));
+  });
+}
+
+/**
+ * Starts mouse drag operation
+ */
+function startDrag(e, item, container, isAttackTab) {
+  e.preventDefault();
+
+  const idAttr = isAttackTab ? 'attackScramblerId' : 'scramblerId';
+  const id = parseInt(item.dataset[idAttr]);
+
+  dragState = {
+    isDragging: true,
+    draggedElement: item,
+    draggedId: id,
+    startX: e.clientX,
+    startY: e.clientY,
+    ghost: null,
+    container: container,
+    isAttackTab: isAttackTab
+  };
+
+  // Create ghost element
+  createDragGhost(item, e.clientX, e.clientY);
+
+  // Add dragging class
+  item.classList.add('dragging');
+  container.classList.add('drag-active');
+
+  // Bind move and end events to document
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', endDrag);
+}
+
+/**
+ * Creates a ghost element for visual feedback
+ */
+function createDragGhost(item, x, y) {
+  const ghost = item.cloneNode(true);
+  ghost.classList.add('drag-ghost');
+  ghost.classList.remove('dragging');
+  ghost.style.width = `${item.offsetWidth}px`;
+  ghost.style.left = `${x - item.offsetWidth / 2}px`;
+  ghost.style.top = `${y - 20}px`;
+  document.body.appendChild(ghost);
+  dragState.ghost = ghost;
+}
+
+/**
+ * Handles mouse movement during drag
+ */
+function handleMouseMove(e) {
+  if (!dragState.isDragging || !dragState.ghost) return;
+
+  // Update ghost position
+  dragState.ghost.style.left = `${e.clientX - dragState.ghost.offsetWidth / 2}px`;
+  dragState.ghost.style.top = `${e.clientY - 20}px`;
+
+  // Find element under cursor
+  dragState.ghost.style.display = 'none';
+  const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
+  dragState.ghost.style.display = '';
+
+  const selector = dragState.isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+  const dropTarget = elemBelow?.closest(selector);
+
+  // Update visual feedback
+  updateDropTargetVisuals(dropTarget);
+}
+
+/**
+ * Updates visual feedback for drop target
+ */
+function updateDropTargetVisuals(dropTarget) {
+  const container = dragState.container;
+  const selector = dragState.isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+
+  // Clear previous drop-over states
+  container.querySelectorAll(`${selector}.drag-over`).forEach(el => {
+    el.classList.remove('drag-over');
+  });
+
+  // Add drop-over to current target
+  if (dropTarget && dropTarget !== dragState.draggedElement) {
+    dropTarget.classList.add('drag-over');
+  }
+}
+
+/**
+ * Ends drag operation
+ */
+function endDrag(e) {
+  if (!dragState.isDragging) return;
+
+  // Find final drop target
+  if (dragState.ghost) dragState.ghost.style.display = 'none';
+  const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
+  if (dragState.ghost) dragState.ghost.style.display = '';
+
+  const selector = dragState.isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+  const dropTarget = elemBelow?.closest(selector);
+
+  if (dropTarget && dropTarget !== dragState.draggedElement) {
+    reorderScramblers(dragState.draggedElement, dropTarget);
+  }
+
+  // Cleanup
+  cleanupDrag();
+}
+
+/**
+ * Cleans up drag state and visuals
+ */
+function cleanupDrag() {
+  if (dragState.ghost) {
+    dragState.ghost.remove();
+  }
+
+  if (dragState.draggedElement) {
+    dragState.draggedElement.classList.remove('dragging');
+  }
+
+  if (dragState.container) {
+    dragState.container.classList.remove('drag-active');
+    const selector = dragState.isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+    dragState.container.querySelectorAll(`${selector}.drag-over`).forEach(el => {
+      el.classList.remove('drag-over');
+    });
+  }
+
+  document.removeEventListener('mousemove', handleMouseMove);
+  document.removeEventListener('mouseup', endDrag);
+
+  dragState = {
+    isDragging: false,
+    draggedElement: null,
+    draggedId: null,
+    startX: 0,
+    startY: 0,
+    ghost: null,
+    container: null,
+    isAttackTab: false
+  };
+}
+
+/**
+ * Reorders scramblers in DOM and updates order state
+ */
+function reorderScramblers(draggedEl, targetEl) {
+  const container = dragState.container;
+  const isAttackTab = dragState.isAttackTab;
+  const selector = isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+
+  // Get current DOM order
+  const items = Array.from(container.querySelectorAll(selector));
+  const draggedIndex = items.indexOf(draggedEl);
+  const targetIndex = items.indexOf(targetEl);
+
+  if (draggedIndex === -1 || targetIndex === -1) return;
+
+  // Reorder in DOM
+  if (draggedIndex < targetIndex) {
+    targetEl.after(draggedEl);
+  } else {
+    targetEl.before(draggedEl);
+  }
+
+  // Update order state from new DOM order
+  updateOrderFromDOM(container, isAttackTab);
+
+  // Update legend labels to show new order
+  updateScramblerLabels(container, isAttackTab);
+
+  // Trigger auto-save
+  if (typeof debouncedSave === 'function') {
+    debouncedSave();
+  }
+}
+
+/**
+ * Updates order state from current DOM order
+ */
+function updateOrderFromDOM(container, isAttackTab) {
+  const selector = isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+  const idAttr = isAttackTab ? 'attackScramblerId' : 'scramblerId';
+
+  const items = container.querySelectorAll(selector);
+  const newOrder = Array.from(items).map(item => parseInt(item.dataset[idAttr]));
+
+  setScramblerOrder(newOrder, isAttackTab);
+}
+
+/**
+ * Updates scrambler legend labels - preserves original ID
+ * Labels are NOT renumbered; they keep their original scrambler ID
+ */
+function updateScramblerLabels(container, isAttackTab) {
+  // Labels are preserved based on data-scrambler-id, no renumbering needed
+  // This function now just ensures the label matches the original ID
+  const selector = isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+  const idAttr = isAttackTab ? 'attackScramblerId' : 'scramblerId';
+  const items = container.querySelectorAll(selector);
+
+  items.forEach((item) => {
+    const label = item.querySelector('.toggle-label span');
+    if (label) {
+      const originalId = parseInt(item.dataset[idAttr]);
+      label.textContent = `Scrambler ${originalId}`;
+    }
+  });
+}
+
+// =================================
+// Touch Drag Support
+// =================================
+
+let touchState = {
+  item: null,
+  container: null,
+  isAttackTab: false,
+  isDragging: false,
+  ghost: null,
+  currentX: 0,
+  currentY: 0
+};
+
+/**
+ * Starts touch drag operation
+ */
+function startTouchDrag(e, item, container, isAttackTab) {
+  e.preventDefault();
+
+  const touch = e.touches[0];
+  const idAttr = isAttackTab ? 'attackScramblerId' : 'scramblerId';
+
+  touchState = {
+    item: item,
+    container: container,
+    isAttackTab: isAttackTab,
+    isDragging: true,
+    ghost: null,
+    currentX: touch.clientX,
+    currentY: touch.clientY
+  };
+
+  // Create ghost immediately
+  const ghost = item.cloneNode(true);
+  ghost.classList.add('drag-ghost');
+  ghost.style.width = `${item.offsetWidth}px`;
+  ghost.style.left = `${touch.clientX - item.offsetWidth / 2}px`;
+  ghost.style.top = `${touch.clientY - 30}px`;
+  document.body.appendChild(ghost);
+  touchState.ghost = ghost;
+
+  item.classList.add('dragging', 'touch-active');
+  container.classList.add('drag-active');
+
+  document.addEventListener('touchmove', handleTouchMove, { passive: false });
+  document.addEventListener('touchend', endTouchDrag);
+  document.addEventListener('touchcancel', cancelTouchDrag);
+}
+
+/**
+ * Handles touch movement
+ */
+function handleTouchMove(e) {
+  if (!touchState.isDragging) return;
+  e.preventDefault();
+
+  const touch = e.touches[0];
+  touchState.currentX = touch.clientX;
+  touchState.currentY = touch.clientY;
+
+  // Update ghost position
+  if (touchState.ghost) {
+    touchState.ghost.style.left = `${touch.clientX - touchState.ghost.offsetWidth / 2}px`;
+    touchState.ghost.style.top = `${touch.clientY - 30}px`;
+  }
+
+  // Find element under touch point
+  if (touchState.ghost) touchState.ghost.style.display = 'none';
+  const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (touchState.ghost) touchState.ghost.style.display = '';
+
+  const selector = touchState.isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+  const dropTarget = elemBelow?.closest(selector);
+
+  // Update visuals
+  const container = touchState.container;
+  container.querySelectorAll(`${selector}.drag-over`).forEach(el => {
+    el.classList.remove('drag-over');
+  });
+
+  if (dropTarget && dropTarget !== touchState.item) {
+    dropTarget.classList.add('drag-over');
+  }
+}
+
+/**
+ * Ends touch drag
+ */
+function endTouchDrag(e) {
+  if (!touchState.isDragging) {
+    cleanupTouchDrag();
+    return;
+  }
+
+  // Find drop target
+  if (touchState.ghost) touchState.ghost.style.display = 'none';
+  const elemBelow = document.elementFromPoint(touchState.currentX, touchState.currentY);
+  if (touchState.ghost) touchState.ghost.style.display = '';
+
+  const selector = touchState.isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+  const dropTarget = elemBelow?.closest(selector);
+
+  if (dropTarget && dropTarget !== touchState.item) {
+    // Set up dragState for reorderScramblers
+    dragState = {
+      isDragging: true,
+      draggedElement: touchState.item,
+      draggedId: parseInt(touchState.item.dataset[touchState.isAttackTab ? 'attackScramblerId' : 'scramblerId']),
+      container: touchState.container,
+      isAttackTab: touchState.isAttackTab
+    };
+    reorderScramblers(touchState.item, dropTarget);
+  }
+
+  cleanupTouchDrag();
+}
+
+/**
+ * Cleans up touch drag state
+ */
+function cleanupTouchDrag() {
+  if (touchState.ghost) {
+    touchState.ghost.remove();
+  }
+
+  if (touchState.item) {
+    touchState.item.classList.remove('dragging', 'touch-active');
+  }
+
+  if (touchState.container) {
+    touchState.container.classList.remove('drag-active');
+    const selector = touchState.isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+    touchState.container.querySelectorAll(`${selector}.drag-over`).forEach(el => {
+      el.classList.remove('drag-over');
+    });
+  }
+
+  document.removeEventListener('touchmove', handleTouchMove);
+  document.removeEventListener('touchend', endTouchDrag);
+  document.removeEventListener('touchcancel', cancelTouchDrag);
+
+  touchState = {
+    item: null,
+    container: null,
+    isAttackTab: false,
+    isDragging: false,
+    ghost: null,
+    currentX: 0,
+    currentY: 0
+  };
+}
+
+function cancelTouchDrag() {
+  cleanupTouchDrag();
+}
+
+/**
+ * Handles keyboard-based reordering
+ */
+function handleKeyboardReorder(e, item, container, isAttackTab) {
+  const selector = isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+  const items = Array.from(container.querySelectorAll(selector));
+  const currentIndex = items.indexOf(item);
+
+  let targetIndex = -1;
+
+  switch (e.key) {
+    case 'ArrowUp':
+    case 'ArrowLeft':
+      if (currentIndex > 0) {
+        targetIndex = currentIndex - 1;
+      }
+      break;
+    case 'ArrowDown':
+    case 'ArrowRight':
+      if (currentIndex < items.length - 1) {
+        targetIndex = currentIndex + 1;
+      }
+      break;
+    default:
+      return;
+  }
+
+  if (targetIndex !== -1) {
+    e.preventDefault();
+
+    // Set up drag state for reorderScramblers
+    const idAttr = isAttackTab ? 'attackScramblerId' : 'scramblerId';
+    dragState = {
+      isDragging: true,
+      draggedElement: item,
+      draggedId: parseInt(item.dataset[idAttr]),
+      container: container,
+      isAttackTab: isAttackTab
+    };
+
+    reorderScramblers(item, items[targetIndex]);
+
+    // Refocus the handle after reorder
+    setTimeout(() => {
+      item.querySelector('.drag-handle')?.focus();
+    }, 10);
+  }
+}
+
+/**
+ * Reorders DOM elements to match saved order state
+ */
+function reorderDOMFromState(isAttackTab) {
+  const container = document.querySelector(
+    isAttackTab ? '.attack-scramblers' : '.scramblers-container'
+  );
+  if (!container) return;
+
+  const order = getScramblerOrder(isAttackTab);
+  const selector = isAttackTab ? '.attack-fieldset[data-attack-scrambler-id]' : '.scrambler[data-scrambler-id]';
+  const idAttr = isAttackTab ? 'attackScramblerId' : 'scramblerId';
+
+  // Get all items
+  const items = Array.from(container.querySelectorAll(selector));
+
+  // Reorder by appending in order
+  order.forEach(id => {
+    const item = items.find(el => parseInt(el.dataset[idAttr]) === id);
+    if (item) {
+      container.appendChild(item);
+    }
+  });
+
+  // Update labels
+  updateScramblerLabels(container, isAttackTab);
+}
+
 /**
  * Sets up real-time processing
  */
@@ -1388,6 +2014,21 @@ function init() {
   bindAttackEvents();
   setupAutoSave();
   setupRealtimeProcessing();
+
+  // Initialize drag-and-drop for both tabs
+  const mainContainer = document.querySelector('.scramblers-container');
+  if (mainContainer) {
+    initDragAndDrop(mainContainer, false);
+  }
+
+  const attackContainer = document.querySelector('.attack-scramblers');
+  if (attackContainer) {
+    initDragAndDrop(attackContainer, true);
+  }
+
+  // Reorder DOM to match loaded state
+  reorderDOMFromState(false);
+  reorderDOMFromState(true);
 
   // Update toggle states after loading settings
   const toggleCheckboxes = [
@@ -1453,18 +2094,25 @@ function buildAttackSettings(positions, baseSettings) {
   const scramblers = [];
   let posIndex = 0;
 
-  for (let i = 0; i < 3; i++) {
-    if (baseSettings.scramblers[i].enabled && baseSettings.scramblers[i].wiring) {
+  for (let i = 0; i < baseSettings.scramblers.length; i++) {
+    const s = baseSettings.scramblers[i];
+    if (s.enabled && s.wiring) {
       scramblers.push({
-        wiring: baseSettings.scramblers[i].wiring,
+        id: s.id || (i + 1), // original scrambler ID
+        wiring: s.wiring,
         position: ALPHABET[positions[posIndex]],
+        notch: s.notch || 'Z',
+        notchEnabled: s.notchEnabled !== false,
         enabled: true
       });
       posIndex++;
     } else {
       scramblers.push({
+        id: s.id || (i + 1),
         wiring: '',
         position: 'A',
+        notch: 'Z',
+        notchEnabled: true,
         enabled: false
       });
     }
@@ -1753,27 +2401,21 @@ function getAttackSettingsFromUI() {
   const ciphertext = document.getElementById('attack-ciphertext')?.value || '';
   const knownPairs = getKnownPlaintextFromGrid();
 
+  // Get scramblers in current visual order
+  const order = getScramblerOrder(true);
+
   // Build settings from attack tab inputs
   const baseSettings = {
     plugboard: document.getElementById('attack-plugboard')?.value || '',
     plugboardEnabled: document.getElementById('attack-plugboard-enabled')?.checked || false,
-    scramblers: [
-      {
-        wiring: document.getElementById('attack-wiring1')?.value || '',
-        position: 'A',
-        enabled: document.getElementById('attack-scrambler1-enabled')?.checked || false
-      },
-      {
-        wiring: document.getElementById('attack-wiring2')?.value || '',
-        position: 'A',
-        enabled: document.getElementById('attack-scrambler2-enabled')?.checked || false
-      },
-      {
-        wiring: document.getElementById('attack-wiring3')?.value || '',
-        position: 'A',
-        enabled: document.getElementById('attack-scrambler3-enabled')?.checked || false
-      }
-    ],
+    scramblers: order.map(id => ({
+      id: id, // original scrambler ID
+      wiring: document.getElementById(`attack-wiring${id}`)?.value || '',
+      position: 'A',
+      notch: document.getElementById(`attack-notch${id}`)?.value || 'Z',
+      notchEnabled: document.getElementById(`attack-notch${id}-enabled`)?.checked ?? true,
+      enabled: document.getElementById(`attack-scrambler${id}-enabled`)?.checked || false
+    })),
     reflector: document.getElementById('attack-reflector')?.value || '',
     reflectorEnabled: document.getElementById('attack-reflector-enabled')?.checked || false
   };
@@ -1952,9 +2594,13 @@ function applyAttackResult() {
   for (let i = 1; i <= 3; i++) {
     const attackEnabled = document.getElementById(`attack-scrambler${i}-enabled`);
     const attackWiring = document.getElementById(`attack-wiring${i}`);
+    const attackNotch = document.getElementById(`attack-notch${i}`);
+    const attackNotchEnabled = document.getElementById(`attack-notch${i}-enabled`);
     const mainEnabled = document.getElementById(`scrambler${i}-enabled`);
     const mainWiring = document.getElementById(`wiring${i}`);
     const mainPosition = document.getElementById(`position${i}`);
+    const mainNotch = document.getElementById(`notch${i}`);
+    const mainNotchEnabled = document.getElementById(`notch${i}-enabled`);
 
     if (mainEnabled && attackEnabled) {
       mainEnabled.checked = attackEnabled.checked;
@@ -1962,6 +2608,14 @@ function applyAttackResult() {
     }
     if (mainWiring && attackWiring) {
       mainWiring.value = attackWiring.value;
+    }
+    // Copy notch settings
+    if (mainNotch && attackNotch) {
+      mainNotch.value = attackNotch.value || 'Z';
+    }
+    // Copy notch enabled state
+    if (mainNotchEnabled && attackNotchEnabled) {
+      mainNotchEnabled.checked = attackNotchEnabled.checked;
     }
 
     // Apply position if this scrambler was enabled and had valid wiring

@@ -418,6 +418,79 @@ textarea[readonly] {
   text-transform: uppercase;
 }
 
+.notch-group {
+  width: auto;
+  min-width: 4.5rem;
+}
+
+.notch-group input.notch {
+  width: 2.5rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.notch-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  cursor: pointer;
+}
+
+.notch-toggle-label input[type="checkbox"] {
+  width: 0.9rem;
+  height: 0.9rem;
+  cursor: pointer;
+  accent-color: #4a90d9;
+}
+
+.notch-toggle-label span {
+  user-select: none;
+}
+
+/* Disable notch input when toggle is off */
+.notch-group:has(.notch-toggle:not(:checked)) .notch {
+  opacity: 0.5;
+  background-color: #f0f0f0;
+  pointer-events: none;
+}
+
+/* Attack tab notch group - inline style */
+.attack-notch-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.attack-notch-group .notch-toggle-label {
+  font-size: 0.75rem;
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.attack-notch-group .notch-toggle-label input[type="checkbox"] {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.attack-notch-group .notch {
+  width: 2rem;
+  padding: 0.35rem 0.25rem;
+  text-align: center;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+/* Disable notch input when toggle is off */
+.attack-notch-group:has(.notch-toggle:not(:checked)) .notch {
+  opacity: 0.5;
+  background-color: #f0f0f0;
+  pointer-events: none;
+}
+
 .wiring {
   text-transform: uppercase;
 }
@@ -1192,5 +1265,123 @@ input.grid-plain-input:focus {
 
   .result-header {
     flex-wrap: nowrap;
+  }
+}
+
+/* =================================
+   15. Drag-and-Drop Styles
+   ================================= */
+
+/* Drag Handle */
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  margin-right: 0.5rem;
+  background: transparent;
+  border: 1px solid #ccc;
+  border-radius: 0.25rem;
+  cursor: grab;
+  color: #888;
+  font-size: 0.9rem;
+  line-height: 1;
+  vertical-align: middle;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: all 0.15s ease;
+}
+
+.drag-handle:hover {
+  background-color: #f0f0f0;
+  border-color: #4a90d9;
+  color: #4a90d9;
+}
+
+.drag-handle:active,
+.drag-handle.dragging {
+  cursor: grabbing;
+  background-color: #e0e8f0;
+}
+
+.drag-handle:focus {
+  outline: 2px solid #4a90d9;
+  outline-offset: 2px;
+}
+
+.drag-handle-icon {
+  display: block;
+  line-height: 1;
+}
+
+/* Dragging States */
+.scrambler.dragging,
+.attack-fieldset.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  position: relative;
+}
+
+/* Drop Target */
+.scrambler.drag-over,
+.attack-fieldset.drag-over {
+  border: 2px dashed #4a90d9 !important;
+  background-color: #f0f8ff !important;
+}
+
+/* Container during drag */
+.scramblers-container.drag-active,
+.attack-scramblers.drag-active {
+  min-height: 80px;
+}
+
+.scramblers-container.drag-active .scrambler:not(.dragging),
+.attack-scramblers.drag-active .attack-fieldset:not(.dragging) {
+  transition: transform 0.2s ease, border 0.15s ease, background-color 0.15s ease;
+}
+
+/* Ghost element during drag */
+.drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.85;
+  transform: rotate(2deg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  background: white;
+  border-radius: 0.5rem;
+}
+
+/* Touch device adjustments */
+@media (hover: none) and (pointer: coarse) {
+  .drag-handle {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: 1.1rem;
+  }
+
+  .scrambler.touch-active,
+  .attack-fieldset.touch-active {
+    transform: scale(1.02);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* Keyboard reordering focus state */
+.scrambler.keyboard-focus,
+.attack-fieldset.keyboard-focus {
+  outline: 3px solid #4a90d9;
+  outline-offset: 2px;
+}
+
+/* Tablet+ grid adjustments for drag handle */
+@media (min-width: 600px) {
+  .drag-handle {
+    margin-right: 0.5rem;
   }
 }
