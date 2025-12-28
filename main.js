@@ -1367,6 +1367,7 @@ function init() {
   }
 
   bindEvents();
+  bindAttackEvents();
   setupAutoSave();
   setupRealtimeProcessing();
 
@@ -1388,3 +1389,781 @@ function init() {
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', init);
+
+// =================================
+// Known Plaintext Attack Module
+// =================================
+
+/**
+ * Escapes HTML special characters to prevent XSS
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string
+ */
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * Converts combination index to array of positions
+ * @param {number} index - Combination index (0 to 26^n - 1)
+ * @param {number} count - Number of scramblers
+ * @returns {number[]} Array of positions (0-25 each)
+ */
+function indexToPositions(index, count) {
+  const positions = [];
+  let remaining = index;
+  for (let i = 0; i < count; i++) {
+    positions.push(remaining % 26);
+    remaining = Math.floor(remaining / 26);
+  }
+  return positions;
+}
+
+/**
+ * Builds test settings object for a position combination
+ * @param {number[]} positions - Array of position indices (0-25)
+ * @param {Object} baseSettings - Base settings from main tab
+ * @returns {Object} Settings object for testing
+ */
+function buildAttackSettings(positions, baseSettings) {
+  const scramblers = [];
+  let posIndex = 0;
+
+  for (let i = 0; i < 3; i++) {
+    if (baseSettings.scramblers[i].enabled && baseSettings.scramblers[i].wiring) {
+      scramblers.push({
+        wiring: baseSettings.scramblers[i].wiring,
+        position: ALPHABET[positions[posIndex]],
+        enabled: true
+      });
+      posIndex++;
+    } else {
+      scramblers.push({
+        wiring: '',
+        position: 'A',
+        enabled: false
+      });
+    }
+  }
+
+  return {
+    plugboard: baseSettings.plugboard,
+    plugboardEnabled: baseSettings.plugboardEnabled,
+    scramblers,
+    reflector: baseSettings.reflector,
+    reflectorEnabled: baseSettings.reflectorEnabled,
+    mode: 'decrypt'
+  };
+}
+
+/**
+ * Decrypts ciphertext and checks against known plaintext positions
+ * @param {string} ciphertext - Ciphertext to decrypt
+ * @param {Array} knownPairs - Array of {pos, char} pairs
+ * @param {Object} settings - Cipher settings
+ * @returns {Object} {matches: boolean, decrypted: string}
+ */
+function testPositionCombination(ciphertext, knownPairs, settings) {
+  const state = initializeState(settings);
+  const decrypted = [];
+  const cipherUpper = ciphertext.toUpperCase();
+
+  for (const char of cipherUpper) {
+    if (/[A-Z]/.test(char)) {
+      decrypted.push(processChar(char, state, []));
+    } else {
+      decrypted.push(char);
+    }
+  }
+
+  const decryptedStr = decrypted.join('');
+
+  // Build mapping: alpha position (0-indexed among letters only) -> string index
+  const alphaPositions = [];
+  for (let i = 0; i < cipherUpper.length; i++) {
+    if (/[A-Z]/.test(cipherUpper[i])) {
+      alphaPositions.push(i);
+    }
+  }
+
+  // Verify all known pairs match
+  for (const pair of knownPairs) {
+    const strIndex = alphaPositions[pair.pos];
+    if (strIndex === undefined || decryptedStr[strIndex] !== pair.char.toUpperCase()) {
+      return { matches: false, decrypted: decryptedStr };
+    }
+  }
+
+  return { matches: true, decrypted: decryptedStr };
+}
+
+/**
+ * Performs Known Plaintext Attack
+ * @param {Object} attackSettings - Attack configuration
+ * @returns {Array} Array of candidate results
+ */
+function performKnownPlaintextAttack(attackSettings) {
+  const {
+    ciphertext,
+    knownPairs,
+    baseSettings
+  } = attackSettings;
+
+  const candidates = [];
+
+  // Count enabled scramblers with valid wiring
+  const enabledScramblers = baseSettings.scramblers.filter(
+    s => s.enabled && s.wiring && s.wiring.length === 26
+  );
+  const scramblerCount = enabledScramblers.length;
+
+  if (scramblerCount === 0) {
+    return [];
+  }
+
+  // Calculate total combinations
+  const totalCombinations = Math.pow(26, scramblerCount);
+
+  // Iterate through all position combinations
+  for (let combo = 0; combo < totalCombinations; combo++) {
+    const positions = indexToPositions(combo, scramblerCount);
+    const testSettings = buildAttackSettings(positions, baseSettings);
+    const result = testPositionCombination(ciphertext, knownPairs, testSettings);
+
+    if (result.matches) {
+      // Get full log for this candidate
+      const logResult = processText(ciphertext, testSettings);
+      candidates.push({
+        positions: positions.map(p => ALPHABET[p]),
+        positionsString: positions.map(p => ALPHABET[p]).join('-'),
+        decryptedFull: result.decrypted,
+        log: logResult.log,
+        matchedPairs: knownPairs // 一致した既知平文ペア
+      });
+    }
+  }
+
+  return candidates;
+}
+
+/**
+ * Validates attack-specific settings
+ * @param {Object} settings - Attack settings
+ * @returns {Object} {valid: boolean, errors: string[]}
+ */
+function validateAttackSettings(settings) {
+  const errors = [];
+
+  if (!settings.ciphertext || !settings.ciphertext.trim()) {
+    errors.push('暗号文を入力してください');
+  }
+
+  if (!settings.knownPairs || settings.knownPairs.length === 0) {
+    errors.push('既知平文を少なくとも1文字入力してください');
+  }
+
+  const cipherAlphaLength = (settings.ciphertext?.match(/[A-Za-z]/g) || []).length;
+
+  // Check if any known position exceeds ciphertext length
+  if (settings.knownPairs) {
+    for (const pair of settings.knownPairs) {
+      if (pair.pos >= cipherAlphaLength) {
+        errors.push(`位置 ${pair.pos} が暗号文の長さを超えています`);
+        break;
+      }
+    }
+  }
+
+  const enabledScramblers = settings.baseSettings?.scramblers?.filter(
+    s => s.enabled && s.wiring && s.wiring.length === 26
+  ) || [];
+
+  if (enabledScramblers.length === 0) {
+    errors.push('有効なスクランブラーが設定されていません（暗号化・復号タブで設定してください）');
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+// =================================
+// Known Plaintext Attack UI
+// =================================
+
+/**
+ * Generates plaintext grid from ciphertext
+ * @param {string} ciphertext - Ciphertext to generate grid for
+ */
+function generatePlaintextGrid(ciphertext) {
+  const gridContainer = document.getElementById('plaintext-grid');
+  if (!gridContainer) return;
+
+  if (!ciphertext || !ciphertext.trim()) {
+    gridContainer.innerHTML = '<p class="grid-placeholder">暗号文を入力すると、ここに入力欄が表示されます</p>';
+    return;
+  }
+
+  gridContainer.innerHTML = '';
+  let alphaIndex = 0;
+
+  for (const char of ciphertext.toUpperCase()) {
+    if (/[A-Z]/.test(char)) {
+      // Create column for alphabet character
+      const column = document.createElement('div');
+      column.className = 'grid-column';
+
+      const cipherChar = document.createElement('span');
+      cipherChar.className = 'grid-cipher-char';
+      cipherChar.textContent = char;
+
+      const plainInput = document.createElement('input');
+      plainInput.type = 'text';
+      plainInput.className = 'grid-plain-input';
+      plainInput.maxLength = 1;
+      plainInput.dataset.position = alphaIndex;
+      plainInput.setAttribute('autocomplete', 'off');
+      plainInput.setAttribute('pattern', '[A-Za-z]');
+
+      // Block non-ASCII input before it happens
+      plainInput.addEventListener('beforeinput', (e) => {
+        if (e.data && !/^[A-Za-z]$/.test(e.data)) {
+          e.preventDefault();
+        }
+      });
+
+      // Auto-move to next input on valid input
+      plainInput.addEventListener('input', (e) => {
+        // Filter to A-Z only
+        const value = e.target.value.replace(/[^A-Za-z]/g, '').toUpperCase();
+        e.target.value = value;
+
+        if (/^[A-Z]$/.test(value)) {
+          // Move to next input
+          const nextInput = gridContainer.querySelector(
+            `.grid-plain-input[data-position="${parseInt(e.target.dataset.position) + 1}"]`
+          );
+          if (nextInput) nextInput.focus();
+        }
+      });
+
+      // Handle backspace to move to previous input
+      plainInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value) {
+          const prevInput = gridContainer.querySelector(
+            `.grid-plain-input[data-position="${parseInt(e.target.dataset.position) - 1}"]`
+          );
+          if (prevInput) {
+            prevInput.focus();
+            prevInput.select();
+          }
+        } else if (e.key === 'ArrowLeft') {
+          const prevInput = gridContainer.querySelector(
+            `.grid-plain-input[data-position="${parseInt(e.target.dataset.position) - 1}"]`
+          );
+          if (prevInput) prevInput.focus();
+        } else if (e.key === 'ArrowRight') {
+          const nextInput = gridContainer.querySelector(
+            `.grid-plain-input[data-position="${parseInt(e.target.dataset.position) + 1}"]`
+          );
+          if (nextInput) nextInput.focus();
+        }
+      });
+
+      column.appendChild(cipherChar);
+      column.appendChild(plainInput);
+      gridContainer.appendChild(column);
+      alphaIndex++;
+    } else {
+      // Create separator for non-alphabet character
+      const separator = document.createElement('span');
+      separator.className = 'grid-separator';
+      separator.textContent = char === ' ' ? '\u00A0' : char;
+      gridContainer.appendChild(separator);
+    }
+  }
+}
+
+/**
+ * Gets known plaintext pairs from grid
+ * @returns {Array} Array of {pos, char} pairs
+ */
+function getKnownPlaintextFromGrid() {
+  const gridContainer = document.getElementById('plaintext-grid');
+  if (!gridContainer) return [];
+
+  const pairs = [];
+  const inputs = gridContainer.querySelectorAll('.grid-plain-input');
+
+  inputs.forEach(input => {
+    const value = input.value.toUpperCase();
+    if (/^[A-Z]$/.test(value)) {
+      pairs.push({
+        pos: parseInt(input.dataset.position, 10),
+        char: value
+      });
+    }
+  });
+
+  return pairs;
+}
+
+/**
+ * Gets attack settings from UI (uses attack tab's own settings)
+ * @returns {Object} Attack settings
+ */
+function getAttackSettingsFromUI() {
+  const ciphertext = document.getElementById('attack-ciphertext')?.value || '';
+  const knownPairs = getKnownPlaintextFromGrid();
+
+  // Build settings from attack tab inputs
+  const baseSettings = {
+    plugboard: document.getElementById('attack-plugboard')?.value || '',
+    plugboardEnabled: document.getElementById('attack-plugboard-enabled')?.checked || false,
+    scramblers: [
+      {
+        wiring: document.getElementById('attack-wiring1')?.value || '',
+        position: 'A',
+        enabled: document.getElementById('attack-scrambler1-enabled')?.checked || false
+      },
+      {
+        wiring: document.getElementById('attack-wiring2')?.value || '',
+        position: 'A',
+        enabled: document.getElementById('attack-scrambler2-enabled')?.checked || false
+      },
+      {
+        wiring: document.getElementById('attack-wiring3')?.value || '',
+        position: 'A',
+        enabled: document.getElementById('attack-scrambler3-enabled')?.checked || false
+      }
+    ],
+    reflector: document.getElementById('attack-reflector')?.value || '',
+    reflectorEnabled: document.getElementById('attack-reflector-enabled')?.checked || false
+  };
+
+  return {
+    ciphertext,
+    knownPairs,
+    baseSettings
+  };
+}
+
+/**
+ * Displays attack error messages
+ * @param {string[]} errors - Array of error messages
+ */
+function displayAttackErrors(errors) {
+  const container = document.getElementById('attack-error-messages');
+  if (!container) return;
+
+  if (errors.length === 0) {
+    container.hidden = true;
+    container.innerHTML = '';
+    return;
+  }
+
+  container.hidden = false;
+  container.innerHTML = errors.map(e => `<p>${escapeHtml(e)}</p>`).join('');
+}
+
+/**
+ * Shows/hides attack progress indicator
+ * @param {boolean} show - Whether to show progress
+ */
+function showAttackProgress(show) {
+  const progress = document.getElementById('attack-progress');
+  if (progress) {
+    progress.hidden = !show;
+  }
+}
+
+/**
+ * Displays attack results
+ * @param {Array} candidates - Array of candidate results
+ */
+function displayAttackResults(candidates, searchInfo) {
+  const resultsContainer = document.getElementById('attack-results');
+  const countDisplay = document.getElementById('attack-result-count');
+
+  if (!resultsContainer || !countDisplay) return;
+
+  if (candidates.length === 0) {
+    countDisplay.textContent = '候補なし';
+    resultsContainer.innerHTML = '<p class="no-results">条件に一致する初期位置は見つかりませんでした。</p>';
+    return;
+  }
+
+  countDisplay.textContent = `${candidates.length}件の候補`;
+
+  // Build match reason display for each candidate
+  const buildMatchReason = (c) => {
+    if (!c.matchedPairs || c.matchedPairs.length === 0) return '';
+
+    const pairsList = c.matchedPairs.map(p =>
+      `位置${p.pos}: 暗号文→平文 で "${escapeHtml(p.char)}" に一致`
+    ).join('\n');
+
+    return pairsList;
+  };
+
+  resultsContainer.innerHTML = candidates.map((c, i) => `
+    <div class="attack-result-item">
+      <div class="result-header">
+        <span class="result-number">#${i + 1}</span>
+        <span class="result-positions">${escapeHtml(c.positionsString)}</span>
+        <button type="button" class="btn-apply-result" data-positions="${escapeHtml(c.positionsString)}">
+          設定に適用
+        </button>
+      </div>
+      <div class="result-match-reason">
+        <label>特定理由:</label>
+        <div class="match-reason-content">
+          初期位置 <strong>${escapeHtml(c.positionsString)}</strong> で復号した結果、指定された全ての既知平文と一致
+          <ul class="match-pairs-list">
+            ${c.matchedPairs.map(p => `<li>位置${p.pos}: "${escapeHtml(p.char)}" と一致</li>`).join('')}
+          </ul>
+        </div>
+      </div>
+      <div class="result-decrypted">
+        <label>復号結果:</label>
+        <code>${escapeHtml(c.decryptedFull)}</code>
+      </div>
+      <details class="result-trace">
+        <summary>処理トレース（復号の詳細）</summary>
+        <pre class="trace-log">${escapeHtml(c.log)}</pre>
+      </details>
+    </div>
+  `).join('');
+
+  // Bind apply buttons
+  resultsContainer.querySelectorAll('.btn-apply-result').forEach(btn => {
+    btn.addEventListener('click', () => {
+      showApplyConfirmDialog(btn.dataset.positions);
+    });
+  });
+}
+
+// Store pending positions for apply confirm dialog
+let pendingApplyPositions = null;
+
+/**
+ * Shows apply confirm dialog
+ * @param {string} positionsString - Positions string (e.g., "A-B-C")
+ */
+function showApplyConfirmDialog(positionsString) {
+  pendingApplyPositions = positionsString;
+
+  const modal = document.getElementById('apply-confirm-modal');
+  const message = document.getElementById('apply-confirm-message');
+
+  if (modal && message) {
+    message.textContent = `スクランブラーの初期位置を ${positionsString} に設定しますか？`;
+    modal.hidden = false;
+  }
+}
+
+/**
+ * Closes apply confirm dialog
+ */
+function closeApplyConfirmDialog() {
+  const modal = document.getElementById('apply-confirm-modal');
+  if (modal) {
+    modal.hidden = true;
+  }
+  pendingApplyPositions = null;
+}
+
+/**
+ * Applies attack result positions to main settings
+ * Copies attack tab settings (wiring, plugboard, reflector) to main tab
+ */
+function applyAttackResult() {
+  if (!pendingApplyPositions) return;
+
+  const positions = pendingApplyPositions.split('-');
+
+  // Copy plugboard settings
+  const attackPlugboardEnabled = document.getElementById('attack-plugboard-enabled');
+  const attackPlugboard = document.getElementById('attack-plugboard');
+  const mainPlugboardEnabled = document.getElementById('plugboard-enabled');
+  const mainPlugboard = document.getElementById('plugboard');
+
+  if (mainPlugboardEnabled && attackPlugboardEnabled) {
+    mainPlugboardEnabled.checked = attackPlugboardEnabled.checked;
+    updateToggleState(mainPlugboardEnabled);
+  }
+  if (mainPlugboard && attackPlugboard) {
+    mainPlugboard.value = attackPlugboard.value;
+  }
+
+  // Copy reflector settings
+  const attackReflectorEnabled = document.getElementById('attack-reflector-enabled');
+  const attackReflector = document.getElementById('attack-reflector');
+  const mainReflectorEnabled = document.getElementById('reflector-enabled');
+  const mainReflector = document.getElementById('reflector');
+
+  if (mainReflectorEnabled && attackReflectorEnabled) {
+    mainReflectorEnabled.checked = attackReflectorEnabled.checked;
+    updateToggleState(mainReflectorEnabled);
+  }
+  if (mainReflector && attackReflector) {
+    mainReflector.value = attackReflector.value;
+  }
+
+  // Copy scrambler settings and apply positions
+  let posIndex = 0;
+  for (let i = 1; i <= 3; i++) {
+    const attackEnabled = document.getElementById(`attack-scrambler${i}-enabled`);
+    const attackWiring = document.getElementById(`attack-wiring${i}`);
+    const mainEnabled = document.getElementById(`scrambler${i}-enabled`);
+    const mainWiring = document.getElementById(`wiring${i}`);
+    const mainPosition = document.getElementById(`position${i}`);
+
+    if (mainEnabled && attackEnabled) {
+      mainEnabled.checked = attackEnabled.checked;
+      updateToggleState(mainEnabled);
+    }
+    if (mainWiring && attackWiring) {
+      mainWiring.value = attackWiring.value;
+    }
+
+    // Apply position if this scrambler was enabled and had valid wiring
+    if (attackEnabled?.checked && attackWiring?.value.length === 26 && mainPosition) {
+      if (positions[posIndex]) {
+        mainPosition.value = positions[posIndex];
+        posIndex++;
+      }
+    }
+  }
+
+  // Close dialog
+  closeApplyConfirmDialog();
+
+  // Switch to cipher tab
+  switchTab('cipher');
+
+  // Save settings
+  saveSettings();
+}
+
+/**
+ * Switches to specified tab
+ * @param {string} tabId - Tab ID ('cipher' or 'analysis')
+ */
+function switchTab(tabId) {
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabPanels = document.querySelectorAll('.tab-panel');
+
+  tabBtns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabId);
+  });
+
+  tabPanels.forEach(panel => {
+    panel.classList.toggle('active', panel.id === `tab-${tabId}`);
+  });
+}
+
+/**
+ * Updates search space display based on enabled scramblers in attack tab
+ */
+function updateAttackSearchSpaceDisplay() {
+  const infoEl = document.getElementById('attack-combinations');
+  if (!infoEl) return;
+
+  const enabledCount = [1, 2, 3].filter(i => {
+    const checkbox = document.getElementById(`attack-scrambler${i}-enabled`);
+    const wiring = document.getElementById(`attack-wiring${i}`);
+    return checkbox?.checked && wiring?.value.length === 26;
+  }).length;
+
+  if (enabledCount === 0) {
+    infoEl.textContent = '有効なスクランブラーがありません';
+    return;
+  }
+
+  const combinations = Math.pow(26, enabledCount);
+  infoEl.textContent = `${combinations.toLocaleString()} 通り (26^${enabledCount})`;
+}
+
+/**
+ * Runs the known plaintext attack
+ */
+function runKnownPlaintextAttack() {
+  const settings = getAttackSettingsFromUI();
+
+  // Validate
+  const validation = validateAttackSettings(settings);
+  if (!validation.valid) {
+    displayAttackErrors(validation.errors);
+    return;
+  }
+
+  displayAttackErrors([]);
+  showAttackProgress(true);
+
+  // Use setTimeout to allow UI to update
+  setTimeout(() => {
+    const candidates = performKnownPlaintextAttack(settings);
+    displayAttackResults(candidates);
+    showAttackProgress(false);
+  }, 10);
+}
+
+/**
+ * Populates attack presets dropdowns
+ */
+function populateAttackPresets() {
+  // Scrambler presets
+  for (let i = 1; i <= 3; i++) {
+    const select = document.getElementById(`attack-preset${i}`);
+    if (select) {
+      select.innerHTML = '';
+      PRESET_WIRINGS.scrambler.forEach(preset => {
+        const option = document.createElement('option');
+        option.value = preset.wiring;
+        option.textContent = preset.name;
+        select.appendChild(option);
+      });
+    }
+  }
+
+  // Reflector presets
+  const reflectorSelect = document.getElementById('attack-preset-reflector');
+  if (reflectorSelect) {
+    reflectorSelect.innerHTML = '';
+    PRESET_WIRINGS.reflector.forEach(preset => {
+      const option = document.createElement('option');
+      option.value = preset.wiring;
+      option.textContent = preset.name;
+      reflectorSelect.appendChild(option);
+    });
+    // Set default to Reflector B
+    reflectorSelect.value = PRESET_WIRINGS.reflector[1]?.wiring || '';
+  }
+}
+
+/**
+ * Updates attack toggle state for fieldsets
+ */
+function updateAttackToggleState(checkbox) {
+  const fieldset = checkbox.closest('.toggleable');
+  if (fieldset) {
+    fieldset.classList.toggle('disabled', !checkbox.checked);
+  }
+}
+
+/**
+ * Binds attack-related events
+ */
+function bindAttackEvents() {
+  // Populate attack presets
+  populateAttackPresets();
+
+  // Run attack button
+  const attackRunBtn = document.getElementById('attack-run-btn');
+  if (attackRunBtn) {
+    attackRunBtn.addEventListener('click', runKnownPlaintextAttack);
+  }
+
+  // Ciphertext input - generate grid and filter to ASCII only
+  const ciphertextInput = document.getElementById('attack-ciphertext');
+  if (ciphertextInput) {
+    // Block non-ASCII input
+    ciphertextInput.addEventListener('beforeinput', (e) => {
+      if (e.data && /[^\x00-\x7F]/.test(e.data)) {
+        e.preventDefault();
+      }
+    });
+
+    // Filter on input and generate grid
+    ciphertextInput.addEventListener('input', (e) => {
+      // Remove any non-ASCII characters that slipped through
+      const filtered = e.target.value.replace(/[^\x00-\x7F]/g, '');
+      if (filtered !== e.target.value) {
+        e.target.value = filtered;
+      }
+    });
+
+    const debouncedGenerate = debounce(() => {
+      generatePlaintextGrid(ciphertextInput.value);
+    }, 300);
+    ciphertextInput.addEventListener('input', debouncedGenerate);
+  }
+
+  // Apply confirm dialog buttons
+  const applyConfirmCancel = document.getElementById('apply-confirm-cancel');
+  const applyConfirmOk = document.getElementById('apply-confirm-ok');
+  const applyConfirmModal = document.getElementById('apply-confirm-modal');
+
+  if (applyConfirmCancel) {
+    applyConfirmCancel.addEventListener('click', closeApplyConfirmDialog);
+  }
+
+  if (applyConfirmOk) {
+    applyConfirmOk.addEventListener('click', applyAttackResult);
+  }
+
+  // Close on overlay click
+  if (applyConfirmModal) {
+    const overlay = applyConfirmModal.querySelector('.modal-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', closeApplyConfirmDialog);
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !applyConfirmModal.hidden) {
+        closeApplyConfirmDialog();
+      }
+    });
+  }
+
+  // Attack preset selection handlers
+  document.querySelectorAll('.attack-preset-select').forEach(select => {
+    select.addEventListener('change', (e) => {
+      const targetId = e.target.dataset.target;
+      const targetInput = document.getElementById(targetId);
+      if (targetInput && e.target.value) {
+        targetInput.value = e.target.value;
+        updateAttackSearchSpaceDisplay();
+      }
+    });
+  });
+
+  // Attack toggle state handlers
+  const attackToggles = [
+    'attack-plugboard-enabled',
+    'attack-scrambler1-enabled',
+    'attack-scrambler2-enabled',
+    'attack-scrambler3-enabled',
+    'attack-reflector-enabled'
+  ];
+
+  attackToggles.forEach(id => {
+    const checkbox = document.getElementById(id);
+    if (checkbox) {
+      // Set initial state
+      updateAttackToggleState(checkbox);
+      // Listen for changes
+      checkbox.addEventListener('change', () => {
+        updateAttackToggleState(checkbox);
+        updateAttackSearchSpaceDisplay();
+      });
+    }
+  });
+
+  // Update search space when attack wiring changes
+  ['attack-wiring1', 'attack-wiring2', 'attack-wiring3'].forEach(id => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.addEventListener('input', debounce(updateAttackSearchSpaceDisplay, 300));
+    }
+  });
+
+  // Initial search space display
+  updateAttackSearchSpaceDisplay();
+}

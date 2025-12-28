@@ -256,15 +256,145 @@
 
     <!-- Tab: Analysis -->
     <div id="tab-analysis" class="tab-panel">
-      <section class="analysis-placeholder">
-        <h2 class="section-title">解析支援</h2>
-        <p class="placeholder-message">この機能は現在開発中です。</p>
-        <ul class="planned-features">
-          <li>入出力ペアからの設定推測</li>
-          <li>ブルートフォース探索</li>
-          <li>頻度分析</li>
-        </ul>
+      <section class="analysis-section">
+        <h2 class="section-title">既知平文攻撃</h2>
+        <p class="section-description">
+          暗号文と既知の平文から、スクランブラーの初期位置を探索します。
+        </p>
+
+        <!-- Attack Settings -->
+        <div class="attack-settings">
+          <!-- Plugboard -->
+          <fieldset class="attack-fieldset toggleable">
+            <legend>
+              <label class="toggle-label">
+                <input type="checkbox" id="attack-plugboard-enabled">
+                <span>Plugboard</span>
+              </label>
+            </legend>
+            <div class="toggle-content">
+              <input type="text" id="attack-plugboard" placeholder="A-B, S-Z, U-Y">
+            </div>
+          </fieldset>
+
+          <!-- Scramblers -->
+          <div class="attack-scramblers">
+            <fieldset class="attack-fieldset toggleable">
+              <legend>
+                <label class="toggle-label">
+                  <input type="checkbox" id="attack-scrambler1-enabled" checked>
+                  <span>Scrambler 1</span>
+                </label>
+              </legend>
+              <div class="toggle-content scrambler-row">
+                <select id="attack-preset1" class="attack-preset-select" data-target="attack-wiring1"></select>
+                <input type="text" id="attack-wiring1" class="wiring" maxlength="26" placeholder="26文字の配線">
+              </div>
+            </fieldset>
+
+            <fieldset class="attack-fieldset toggleable">
+              <legend>
+                <label class="toggle-label">
+                  <input type="checkbox" id="attack-scrambler2-enabled">
+                  <span>Scrambler 2</span>
+                </label>
+              </legend>
+              <div class="toggle-content scrambler-row">
+                <select id="attack-preset2" class="attack-preset-select" data-target="attack-wiring2"></select>
+                <input type="text" id="attack-wiring2" class="wiring" maxlength="26" placeholder="26文字の配線">
+              </div>
+            </fieldset>
+
+            <fieldset class="attack-fieldset toggleable">
+              <legend>
+                <label class="toggle-label">
+                  <input type="checkbox" id="attack-scrambler3-enabled">
+                  <span>Scrambler 3</span>
+                </label>
+              </legend>
+              <div class="toggle-content scrambler-row">
+                <select id="attack-preset3" class="attack-preset-select" data-target="attack-wiring3"></select>
+                <input type="text" id="attack-wiring3" class="wiring" maxlength="26" placeholder="26文字の配線">
+              </div>
+            </fieldset>
+          </div>
+
+          <!-- Reflector -->
+          <fieldset class="attack-fieldset toggleable">
+            <legend>
+              <label class="toggle-label">
+                <input type="checkbox" id="attack-reflector-enabled" checked>
+                <span>Reflector</span>
+              </label>
+            </legend>
+            <div class="toggle-content scrambler-row">
+              <select id="attack-preset-reflector" class="attack-preset-select" data-target="attack-reflector" data-type="reflector"></select>
+              <input type="text" id="attack-reflector" maxlength="26" value="YRUHQSLDPXNGOKMIEBFZCWVJAT">
+            </div>
+          </fieldset>
+        </div>
+
+        <!-- Attack Inputs -->
+        <div class="attack-inputs">
+          <div class="input-group">
+            <label for="attack-ciphertext">暗号文</label>
+            <textarea id="attack-ciphertext" placeholder="探索対象の暗号文を入力..."></textarea>
+          </div>
+
+          <div class="input-group">
+            <label>既知平文</label>
+            <p class="helper-text">暗号文の各文字に対応する平文がわかっている場合、下の入力欄に入力してください。空欄は不明を意味します。</p>
+            <div id="plaintext-grid" class="plaintext-grid">
+              <p class="grid-placeholder">暗号文を入力すると、ここに入力欄が表示されます</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search Info -->
+        <div class="search-info" id="attack-search-info">
+          <span class="search-space">探索空間: <strong id="attack-combinations">-</strong></span>
+        </div>
+
+        <!-- Action -->
+        <div class="attack-actions">
+          <button type="button" id="attack-run-btn" class="btn-primary">探索実行</button>
+        </div>
+
+        <!-- Error Messages -->
+        <div id="attack-error-messages" class="error-messages" hidden></div>
+
+        <!-- Progress Indicator -->
+        <div id="attack-progress" class="progress-indicator" hidden>
+          <span class="spinner"></span>
+          <span>探索中...</span>
+        </div>
+
+        <!-- Results -->
+        <div class="attack-results-section">
+          <div class="results-header">
+            <h3>探索結果</h3>
+            <span id="attack-result-count">-</span>
+          </div>
+          <div id="attack-results" class="attack-results">
+            <p class="placeholder-message">探索を実行すると結果がここに表示されます</p>
+          </div>
+        </div>
       </section>
+    </div>
+
+    <!-- Apply Confirm Modal -->
+    <div id="apply-confirm-modal" class="modal" hidden>
+      <div class="modal-overlay"></div>
+      <div class="modal-content modal-confirm">
+        <h2>設定を適用</h2>
+        <div class="modal-body">
+          <p id="apply-confirm-message">スクランブラーの初期位置を設定しますか？</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="apply-confirm-cancel" class="btn-secondary">キャンセル</button>
+          <button type="button" id="apply-confirm-ok" class="btn-primary">適用</button>
+        </div>
+      </div>
     </div>
 
     <footer class="footer">
