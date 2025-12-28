@@ -918,7 +918,7 @@ function generateInitialStateLog(state) {
   const { scramblers, reflector, reflectorEnabled } = state;
   const lines = [];
 
-  lines.push('【初期状態】');
+  lines.push('【配線設定】');
   lines.push('');
   lines.push(ALPHABET + '　←入力・出力');
   lines.push('');
@@ -938,6 +938,24 @@ function generateInitialStateLog(state) {
   }
 
   lines.push('');
+  lines.push('────────────────────────────────────────────────────────');
+
+  // Show initial setup with starting positions applied
+  lines.push('【初期設定】（開始位置を適用した状態）');
+  lines.push('');
+  lines.push(ALPHABET + '　←入力・出力');
+  lines.push('');
+
+  for (let i = 0; i < scramblers.length; i++) {
+    const s = scramblers[i];
+    const posChar = ALPHABET[s.position];
+    // Show shifted alphabet to indicate position
+    const shiftedAlphabet = ALPHABET.slice(s.position) + ALPHABET.slice(0, s.position);
+    lines.push(shiftedAlphabet + `　←シフト後（開始位置: ${posChar}）`);
+    lines.push(s.wiring + `　←スクランブラー${i + 1}`);
+    lines.push('');
+  }
+
   lines.push('════════════════════════════════════════════════════════');
   lines.push('【処理開始】');
 
@@ -1636,10 +1654,25 @@ function generatePlaintextGrid(ciphertext) {
         }
       });
 
+      // Block IME composition (full-width input)
+      let isComposing = false;
+      plainInput.addEventListener('compositionstart', () => {
+        isComposing = true;
+      });
+      plainInput.addEventListener('compositionend', (e) => {
+        isComposing = false;
+        // Clear any composed text and keep only ASCII
+        const value = e.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 1);
+        e.target.value = value;
+      });
+
       // Auto-move to next input on valid input
       plainInput.addEventListener('input', (e) => {
-        // Filter to A-Z only
-        const value = e.target.value.replace(/[^A-Za-z]/g, '').toUpperCase();
+        // Skip processing during IME composition
+        if (isComposing) return;
+
+        // Filter to A-Z only and limit to 1 character
+        const value = e.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 1);
         e.target.value = value;
 
         if (/^[A-Z]$/.test(value)) {

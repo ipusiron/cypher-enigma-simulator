@@ -50,6 +50,38 @@ start index.html
 - Target: A-Z uppercase only
 - Non-alphabetic characters pass through unchanged
 
+## Known Plaintext Attack Feature
+
+### Attack Flow
+
+1. User sets plugboard, scrambler wirings, and reflector in the analysis tab
+2. User enters ciphertext (plaintext grid is auto-generated)
+3. User fills in known plaintext characters at corresponding positions
+4. Attack function iterates through all 26^n position combinations
+5. For each combination, decrypt ciphertext and check if all known plaintext positions match
+6. Display matching candidates with trace information
+
+### Key Functions
+
+- `indexToPositions(index, count)`: Convert linear index to position array
+- `buildAttackSettings(positions, baseSettings)`: Construct settings object for testing
+- `testPositionCombination(settings)`: Test a single position combination
+- `performKnownPlaintextAttack(settings)`: Main brute-force search function
+- `generatePlaintextGrid(ciphertext)`: Generate UI grid for plaintext input
+- `getKnownPlaintextFromGrid()`: Collect {position, char} pairs from grid
+
+### Search Space
+
+- 1 scrambler: 26 combinations
+- 2 scramblers: 676 combinations
+- 3 scramblers: 17,576 combinations
+
+### Security Considerations
+
+- ASCII-only input filter on ciphertext textarea (blocks non-ASCII via `beforeinput` event)
+- HTML escaping via `escapeHtml()` for all dynamic content inserted via `innerHTML`
+- No external dependencies (reduces supply chain risk)
+
 ## UI Skills
 
 This project uses mobile-first web UI design principles (see `.claude/skills/mobile-first-web-ui/SKILL.md`):
