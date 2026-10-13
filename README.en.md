@@ -73,6 +73,10 @@ The tool runs directly in a browser.
 >
 > *Processing trace*
 
+> ![Known-plaintext initial-position search](assets/screenshot3.png)
+>
+> *Initial-position search with progress and per-clue candidate reduction*
+
 ---
 
 ## ✨ Features
@@ -101,10 +105,14 @@ The tool runs directly in a browser.
 - Searches the starting positions when wiring and some plaintext letters are known
 - Search spaces of 26, 676, or 17,576 combinations for one, two, or three scramblers
 - Accepts multiple separated known-plaintext letters
-- Shows every matching candidate, its full output, supplied matches, and trace
+- Searches in asynchronous batches of 64 with progress and cancellation
+- Shows how each added known letter reduces the candidate set
+- Counts every match while retaining only the first 100 for display
+- Generates a candidate's detailed processing trace only when its disclosure is opened
 - Applies a selected candidate to the main tab only after confirmation
 
 The candidates satisfy the supplied conditions. They do not prove the correct answer or recover unknown wiring or a complete historical key.
+If a search is cancelled, the displayed candidates and narrowing counts cover only the combinations already checked. Candidate order and counts are not probabilities, confidence scores, or accuracy measurements.
 
 ---
 
@@ -133,7 +141,9 @@ Only A-Z letters are transformed. Spaces, digits, punctuation, and other charact
 2. Enter the known plugboard, scrambler, and reflector settings.
 3. Enter up to 200 ciphertext characters.
 4. Fill in only the plaintext letters whose positions are known.
-5. Select **Run search** and compare the candidates.
+5. Select **Run search** and monitor checked combinations, total combinations, and matches. Use **Cancel search** if needed.
+6. Compare the narrowing table to see how many candidates each additional known letter eliminates.
+7. Open a candidate only when you need its detailed processing trace, or apply it to the main tab after confirmation.
 
 ---
 
@@ -245,6 +255,7 @@ cypher-enigma-simulator/
 ├── index.html              # Main page
 ├── style.css               # Responsive styles
 ├── logic.js                # DOM-independent cipher core
+├── attack-core.js          # Batched search and candidate-narrowing calculations
 ├── messages.js             # Japanese and English UI messages
 ├── main.js                 # UI, persistence, and position search
 ├── README.md               # Japanese documentation
@@ -254,6 +265,7 @@ cypher-enigma-simulator/
 ├── .github/workflows/
 │   └── test.yml            # Test workflow for push and pull requests
 ├── test/
+│   ├── attack-core.test.js # Batching, retention limit, narrowing counts
 │   ├── core.test.js        # Vectors, round trips, stepping, validation
 │   └── ui-contract.test.js # Bilingual UI, CSP, responsive contracts
 ├── assets/                 # Screenshots

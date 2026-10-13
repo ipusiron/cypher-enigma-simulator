@@ -420,16 +420,42 @@
         <!-- Action -->
         <div class="attack-actions">
           <button type="button" id="attack-run-btn" class="btn-primary" data-i18n="runSearch">探索実行</button>
+          <button type="button" id="attack-cancel-btn" class="btn-secondary" data-i18n="cancelSearch" hidden>探索を中止</button>
         </div>
 
         <!-- Error Messages -->
         <div id="attack-error-messages" class="error-messages" hidden></div>
 
         <!-- Progress Indicator -->
-        <div id="attack-progress" class="progress-indicator" hidden>
-          <span class="spinner"></span>
-          <span data-i18n="searching">探索中…</span>
+        <div id="attack-progress" class="progress-indicator" role="status" aria-live="polite" hidden>
+          <div class="progress-heading">
+            <span id="attack-progress-spinner" class="spinner" aria-hidden="true"></span>
+            <span id="attack-progress-text" data-i18n="searching">探索中…</span>
+          </div>
+          <progress id="attack-progress-bar" max="100" value="0" data-i18n-aria-label="searchProgressAria" aria-label="初期位置の探索進捗"></progress>
         </div>
+
+        <!-- Candidate narrowing -->
+        <section id="attack-narrowing-section" class="narrowing-section" aria-labelledby="attack-narrowing-title" hidden>
+          <h3 id="attack-narrowing-title" data-i18n="narrowingTitle">既知平文による候補の絞り込み</h3>
+          <p id="attack-narrowing-note" class="helper-text" data-i18n="narrowingHelp">入力位置の左から既知文字を1つずつ加えた場合に、初期位置の候補が何件残るかを示します。</p>
+          <div class="table-scroll" tabindex="0" data-i18n-aria-label="narrowingTableAria" aria-label="候補絞り込み表。横方向にスクロールできます">
+            <table class="narrowing-table">
+              <thead>
+                <tr>
+                  <th scope="col" data-i18n="narrowingStep">手順</th>
+                  <th scope="col" data-i18n="narrowingClue">追加する対応</th>
+                  <th scope="col" data-i18n="narrowingBefore">追加前</th>
+                  <th scope="col" data-i18n="narrowingAfter">追加後</th>
+                  <th scope="col" data-i18n="narrowingEliminated">除外</th>
+                </tr>
+              </thead>
+              <tbody id="attack-narrowing-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <p id="attack-retention-note" class="retention-note" hidden></p>
 
         <!-- Results -->
         <div class="attack-results-section">
@@ -465,6 +491,7 @@
   </main>
 
   <script src="logic.js"></script>
+  <script src="attack-core.js"></script>
   <script src="messages.js"></script>
   <script src="main.js"></script>
 </body>

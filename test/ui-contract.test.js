@@ -18,8 +18,9 @@ function loadMessages() {
   return context.globalThis.CypherEnigmaMessages;
 }
 
-test('browser scripts load core and messages before the UI controller', () => {
-  assert.ok(html.indexOf('logic.js') < html.indexOf('messages.js'));
+test('browser scripts load both cores and messages before the UI controller', () => {
+  assert.ok(html.indexOf('logic.js') < html.indexOf('attack-core.js'));
+  assert.ok(html.indexOf('attack-core.js') < html.indexOf('messages.js'));
   assert.ok(html.indexOf('messages.js') < html.indexOf('main.js'));
 });
 
@@ -57,6 +58,18 @@ test('the mobile base layout stacks scrambler controls', () => {
 test('the UI controller delegates processing to the pure core', () => {
   assert.match(main, /Core\.processText\(text, settings/);
   assert.match(main, /Core\.validateReflectorWiring/);
+  assert.match(main, /Attack\.createSearchState/);
+  assert.match(main, /Attack\.advanceSearch/);
+});
+
+test('search progress, cancellation, and narrowing table are available', () => {
+  assert.match(html, /id="attack-cancel-btn"/);
+  assert.match(html, /id="attack-progress-bar"/);
+  assert.match(html, /id="attack-narrowing-body"/);
+  assert.match(css, /\.attack-actions\s*\{[^}]*flex-direction:\s*column/s);
+  assert.match(css, /\.table-scroll\s*\{[^}]*overflow-x:\s*auto/s);
+  assert.match(main, /updateAttackProgress\(lastAttackResults\.summary/);
+  assert.doesNotMatch(main, /function performKnownPlaintextAttack/);
 });
 
 test('CI runs the complete Node test suite', () => {

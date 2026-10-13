@@ -4,8 +4,9 @@
  */
 
 const Core = globalThis.CypherEnigmaCore;
+const Attack = globalThis.CypherEnigmaAttack;
 const Messages = globalThis.CypherEnigmaMessages;
-if (!Core || !Messages) {
+if (!Core || !Attack || !Messages) {
   throw new Error('Application dependencies are unavailable.');
 }
 
@@ -13,6 +14,7 @@ const { ALPHABET, PRESET_WIRINGS } = Core;
 const LANGUAGE_STORAGE_KEY = 'cypher-enigma-language';
 let currentLanguage = 'ja';
 let lastAttackResults = null;
+let activeAttackSearch = null;
 let debouncedSaveSettings = null;
 
 function interpolate(template, variables = {}) {
@@ -63,7 +65,15 @@ function setLanguage(language, options = {}) {
   populateAttackPresets();
   updateAttackSearchSpaceDisplay();
   if (document.getElementById('input-text')?.value) updateOutput();
-  if (lastAttackResults) displayAttackResults(lastAttackResults.candidates, lastAttackResults.searchInfo, false);
+  if (lastAttackResults) {
+    displayAttackResults(lastAttackResults.summary, lastAttackResults.searchInfo, lastAttackResults.cancelled, false);
+    displayNarrowingSummary(lastAttackResults.summary, lastAttackResults.cancelled);
+    updateAttackProgress(lastAttackResults.summary, {
+      complete: !lastAttackResults.cancelled,
+      cancelled: lastAttackResults.cancelled
+    });
+  }
+  if (activeAttackSearch) updateAttackProgress(Attack.getSearchSummary(activeAttackSearch.state));
   if (!document.getElementById('attack-ciphertext')?.value) generatePlaintextGrid('');
   if (pendingApplyPositions) {
     document.getElementById('apply-confirm-message').textContent = t('applyPositionsQuestion', { positions: pendingApplyPositions });
@@ -2188,156 +2198,6 @@ function escapeHtml(str) {
 }
 
 /**
- * Converts combination index to array of positions
- * @param {number} index - Combination index (0 to 26^n - 1)
- * @param {number} count - Number of scramblers
- * @returns {number[]} Array of positions (0-25 each)
- */
-function indexToPositions(index, count) {
-  const positions = [];
-  let remaining = index;
-  for (let i = 0; i < count; i++) {
-    positions.push(remaining % 26);
-    remaining = Math.floor(remaining / 26);
-  }
-  return positions;
-}
-
-/**
- * Builds test settings object for a position combination
- * @param {number[]} positions - Array of position indices (0-25)
- * @param {Object} baseSettings - Base settings from main tab
- * @returns {Object} Settings object for testing
- */
-function buildAttackSettings(positions, baseSettings) {
-  const scramblers = [];
-  let posIndex = 0;
-
-  for (let i = 0; i < baseSettings.scramblers.length; i++) {
-    const s = baseSettings.scramblers[i];
-    if (s.enabled && s.wiring) {
-      scramblers.push({
-        id: s.id || (i + 1), // original scrambler ID
-        wiring: s.wiring,
-        position: ALPHABET[positions[posIndex]],
-        notch: s.notch || 'Z',
-        notchEnabled: s.notchEnabled !== false,
-        enabled: true
-      });
-      posIndex++;
-    } else {
-      scramblers.push({
-        id: s.id || (i + 1),
-        wiring: '',
-        position: 'A',
-        notch: 'Z',
-        notchEnabled: true,
-        enabled: false
-      });
-    }
-  }
-
-  return {
-    plugboard: baseSettings.plugboard,
-    plugboardEnabled: baseSettings.plugboardEnabled,
-    scramblers,
-    reflector: baseSettings.reflector,
-    reflectorEnabled: baseSettings.reflectorEnabled,
-    mode: 'decrypt'
-  };
-}
-
-/**
- * Decrypts ciphertext and checks against known plaintext positions
- * @param {string} ciphertext - Ciphertext to decrypt
- * @param {Array} knownPairs - Array of {pos, char} pairs
- * @param {Object} settings - Cipher settings
- * @returns {Object} {matches: boolean, decrypted: string}
- */
-function testPositionCombination(ciphertext, knownPairs, settings) {
-  const state = initializeState(settings);
-  const decrypted = [];
-  const cipherUpper = ciphertext.toUpperCase();
-
-  for (const char of cipherUpper) {
-    if (/[A-Z]/.test(char)) {
-      decrypted.push(processChar(char, state, []));
-    } else {
-      decrypted.push(char);
-    }
-  }
-
-  const decryptedStr = decrypted.join('');
-
-  // Build mapping: alpha position (0-indexed among letters only) -> string index
-  const alphaPositions = [];
-  for (let i = 0; i < cipherUpper.length; i++) {
-    if (/[A-Z]/.test(cipherUpper[i])) {
-      alphaPositions.push(i);
-    }
-  }
-
-  // Verify all known pairs match
-  for (const pair of knownPairs) {
-    const strIndex = alphaPositions[pair.pos];
-    if (strIndex === undefined || decryptedStr[strIndex] !== pair.char.toUpperCase()) {
-      return { matches: false, decrypted: decryptedStr };
-    }
-  }
-
-  return { matches: true, decrypted: decryptedStr };
-}
-
-/**
- * Performs Known Plaintext Attack
- * @param {Object} attackSettings - Attack configuration
- * @returns {Array} Array of candidate results
- */
-function performKnownPlaintextAttack(attackSettings) {
-  const {
-    ciphertext,
-    knownPairs,
-    baseSettings
-  } = attackSettings;
-
-  const candidates = [];
-
-  // Count enabled scramblers with valid wiring
-  const enabledScramblers = baseSettings.scramblers.filter(
-    s => s.enabled && s.wiring && s.wiring.length === 26
-  );
-  const scramblerCount = enabledScramblers.length;
-
-  if (scramblerCount === 0) {
-    return [];
-  }
-
-  // Calculate total combinations
-  const totalCombinations = Math.pow(26, scramblerCount);
-
-  // Iterate through all position combinations
-  for (let combo = 0; combo < totalCombinations; combo++) {
-    const positions = indexToPositions(combo, scramblerCount);
-    const testSettings = buildAttackSettings(positions, baseSettings);
-    const result = testPositionCombination(ciphertext, knownPairs, testSettings);
-
-    if (result.matches) {
-      // Get full log for this candidate
-      const logResult = processText(ciphertext, testSettings);
-      candidates.push({
-        positions: positions.map(p => ALPHABET[p]),
-        positionsString: positions.map(p => ALPHABET[p]).join('-'),
-        decryptedFull: result.decrypted,
-        log: logResult.log,
-        matchedPairs: knownPairs // 一致した既知平文ペア
-      });
-    }
-  }
-
-  return candidates;
-}
-
-/**
  * Validates attack-specific settings
  * @param {Object} settings - Attack settings
  * @returns {Object} {valid: boolean, errors: string[]}
@@ -2584,72 +2444,132 @@ function displayAttackErrors(errors) {
   container.innerHTML = errors.map(e => `<p>${escapeHtml(e)}</p>`).join('');
 }
 
-/**
- * Shows/hides attack progress indicator
- * @param {boolean} show - Whether to show progress
- */
-function showAttackProgress(show) {
+function setAttackControlsRunning(running) {
+  const runButton = document.getElementById('attack-run-btn');
+  const cancelButton = document.getElementById('attack-cancel-btn');
+  if (runButton) runButton.disabled = running;
+  if (cancelButton) cancelButton.hidden = !running;
+}
+
+function updateAttackProgress(summary, options = {}) {
   const progress = document.getElementById('attack-progress');
-  if (progress) {
-    progress.hidden = !show;
-  }
+  const progressBar = document.getElementById('attack-progress-bar');
+  const progressText = document.getElementById('attack-progress-text');
+  const spinner = document.getElementById('attack-progress-spinner');
+  if (!progress || !progressBar || !progressText) return;
+
+  const total = Math.max(summary.total, 1);
+  const percent = Math.min(100, Math.floor((summary.checked / total) * 100));
+  progress.hidden = false;
+  progressBar.max = total;
+  progressBar.value = summary.checked;
+  if (spinner) spinner.hidden = Boolean(options.complete || options.cancelled);
+
+  const variables = {
+    checked: summary.checked.toLocaleString(currentLanguage),
+    total: summary.total.toLocaleString(currentLanguage),
+    percent,
+    matches: summary.matchCount.toLocaleString(currentLanguage)
+  };
+  if (options.cancelled) progressText.textContent = t('searchCancelled', variables);
+  else if (options.complete) progressText.textContent = t('searchComplete', variables);
+  else progressText.textContent = t('searchProgress', variables);
+}
+
+function displayNarrowingSummary(summary, cancelled = false) {
+  const section = document.getElementById('attack-narrowing-section');
+  const note = document.getElementById('attack-narrowing-note');
+  const body = document.getElementById('attack-narrowing-body');
+  if (!section || !note || !body) return;
+
+  section.hidden = summary.narrowingRows.length === 0;
+  note.textContent = t(cancelled ? 'narrowingPartialHelp' : 'narrowingHelp');
+  body.innerHTML = summary.narrowingRows.map((row) => `
+    <tr>
+      <th scope="row">${row.step}</th>
+      <td>${escapeHtml(t('narrowingClueValue', {
+        position: row.position,
+        cipher: row.cipherChar,
+        plain: row.plainChar
+      }))}</td>
+      <td>${row.before.toLocaleString(currentLanguage)}</td>
+      <td>${row.after.toLocaleString(currentLanguage)}</td>
+      <td>${row.eliminated.toLocaleString(currentLanguage)}</td>
+    </tr>
+  `).join('');
 }
 
 /**
- * Displays attack results
- * @param {Array} candidates - Array of candidate results
+ * Displays attack results and generates detailed traces only when opened.
+ * @param {Object} summary - Search summary from attack-core.js
  */
-function displayAttackResults(candidates, searchInfo, remember = true) {
+function displayAttackResults(summary, searchInfo, cancelled = false, remember = true) {
   const resultsContainer = document.getElementById('attack-results');
   const countDisplay = document.getElementById('attack-result-count');
+  const retentionNote = document.getElementById('attack-retention-note');
 
   if (!resultsContainer || !countDisplay) return;
 
-  const renderedCandidates = searchInfo?.baseSettings
-    ? candidates.map((candidate) => {
-      const positionIndexes = candidate.positions.map((position) => ALPHABET.indexOf(position));
-      const settings = buildAttackSettings(positionIndexes, searchInfo.baseSettings);
-      return { ...candidate, log: processText(searchInfo.ciphertext, settings).log };
-    })
-    : candidates;
-
   if (remember) {
-    lastAttackResults = { candidates, searchInfo };
+    lastAttackResults = { summary, searchInfo, cancelled };
   }
 
-  if (renderedCandidates.length === 0) {
-    countDisplay.textContent = t('noCandidates');
+  if (retentionNote) {
+    retentionNote.hidden = !summary.truncated;
+    retentionNote.textContent = summary.truncated
+      ? t('retainedCandidates', {
+        total: summary.matchCount.toLocaleString(currentLanguage),
+        shown: summary.shownCount.toLocaleString(currentLanguage)
+      })
+      : '';
+  }
+
+  if (cancelled) {
+    countDisplay.textContent = t('partialCandidateCount', {
+      count: summary.matchCount.toLocaleString(currentLanguage),
+      checked: summary.checked.toLocaleString(currentLanguage)
+    });
+  } else if (summary.truncated) {
+    countDisplay.textContent = t('candidateCountLimited', {
+      total: summary.matchCount.toLocaleString(currentLanguage),
+      shown: summary.shownCount.toLocaleString(currentLanguage)
+    });
+  } else {
+    countDisplay.textContent = t('candidateCount', {
+      count: summary.matchCount.toLocaleString(currentLanguage)
+    });
+  }
+
+  if (summary.candidates.length === 0) {
     resultsContainer.innerHTML = `<p class="no-results">${escapeHtml(t('noCandidateBody'))}</p>`;
     return;
   }
 
-  countDisplay.textContent = t('candidateCount', { count: renderedCandidates.length });
-
-  resultsContainer.innerHTML = renderedCandidates.map((c, i) => `
+  resultsContainer.innerHTML = summary.candidates.map((candidate, index) => `
     <div class="attack-result-item">
       <div class="result-header">
-        <span class="result-number">#${i + 1}</span>
-        <span class="result-positions">${escapeHtml(c.positionsString)}</span>
-        <button type="button" class="btn-apply-result" data-positions="${escapeHtml(c.positionsString)}">
+        <span class="result-number">#${index + 1}</span>
+        <span class="result-positions">${escapeHtml(candidate.positionsString)}</span>
+        <button type="button" class="btn-apply-result" data-positions="${escapeHtml(candidate.positionsString)}">
           ${escapeHtml(t('applyToSettings'))}
         </button>
       </div>
       <div class="result-match-reason">
         <label>${escapeHtml(t('reason'))}:</label>
         <div class="match-reason-content">
-          ${escapeHtml(t('candidateReason', { positions: c.positionsString }))}
+          ${escapeHtml(t('candidateReason', { positions: candidate.positionsString }))}
           <ul class="match-pairs-list">
-            ${c.matchedPairs.map(p => `<li>${escapeHtml(t('matchedAt', { position: p.pos, char: p.char }))}</li>`).join('')}
+            ${candidate.matchedPairs.map(pair => `<li>${escapeHtml(t('matchedAt', { position: pair.pos + 1, char: pair.char }))}</li>`).join('')}
           </ul>
         </div>
       </div>
       <div class="result-decrypted">
         <label>${escapeHtml(t('decryptedResult'))}:</label>
-        <code>${escapeHtml(c.decryptedFull)}</code>
+        <code>${escapeHtml(candidate.decryptedFull)}</code>
       </div>
-      <details class="result-trace">
+      <details class="result-trace" data-candidate-index="${index}">
         <summary>${escapeHtml(t('traceDetails'))}</summary>
-        <pre class="trace-log">${escapeHtml(c.log)}</pre>
+        <pre class="trace-log">${escapeHtml(t('traceOnDemand'))}</pre>
       </details>
     </div>
   `).join('');
@@ -2658,6 +2578,19 @@ function displayAttackResults(candidates, searchInfo, remember = true) {
   resultsContainer.querySelectorAll('.btn-apply-result').forEach(btn => {
     btn.addEventListener('click', () => {
       showApplyConfirmDialog(btn.dataset.positions);
+    });
+  });
+
+  resultsContainer.querySelectorAll('.result-trace').forEach((details) => {
+    details.addEventListener('toggle', () => {
+      if (!details.open) return;
+      const trace = details.querySelector('.trace-log');
+      if (!trace || trace.dataset.loaded === 'true') return;
+      const candidate = summary.candidates[Number(details.dataset.candidateIndex)];
+      const positionIndexes = candidate.positions.map((position) => ALPHABET.indexOf(position));
+      const settings = Attack.buildAttackSettings(positionIndexes, searchInfo.baseSettings);
+      trace.textContent = processText(searchInfo.ciphertext, settings).log;
+      trace.dataset.loaded = 'true';
     });
   });
 }
@@ -2823,10 +2756,22 @@ function updateAttackSearchSpaceDisplay() {
   });
 }
 
+function yieldAttackSearch() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function cancelKnownPlaintextAttack() {
+  if (!activeAttackSearch) return;
+  activeAttackSearch.cancelled = true;
+  const cancelButton = document.getElementById('attack-cancel-btn');
+  if (cancelButton) cancelButton.disabled = true;
+}
+
 /**
- * Runs the known plaintext attack
+ * Runs the known plaintext attack in small batches so the UI stays responsive.
  */
-function runKnownPlaintextAttack() {
+async function runKnownPlaintextAttack() {
+  if (activeAttackSearch) return;
   const settings = getAttackSettingsFromUI();
 
   // Validate
@@ -2837,14 +2782,44 @@ function runKnownPlaintextAttack() {
   }
 
   displayAttackErrors([]);
-  showAttackProgress(true);
+  lastAttackResults = null;
+  const narrowingSection = document.getElementById('attack-narrowing-section');
+  const retentionNote = document.getElementById('attack-retention-note');
+  const resultsContainer = document.getElementById('attack-results');
+  const countDisplay = document.getElementById('attack-result-count');
+  if (narrowingSection) narrowingSection.hidden = true;
+  if (retentionNote) retentionNote.hidden = true;
+  if (resultsContainer) resultsContainer.innerHTML = `<p class="placeholder-message">${escapeHtml(t('searching'))}</p>`;
+  if (countDisplay) countDisplay.textContent = '-';
 
-  // Use setTimeout to allow UI to update
-  setTimeout(() => {
-    const candidates = performKnownPlaintextAttack(settings);
-    displayAttackResults(candidates, settings);
-    showAttackProgress(false);
-  }, 10);
+  const state = Attack.createSearchState(settings);
+  const token = { state, cancelled: false };
+  activeAttackSearch = token;
+  setAttackControlsRunning(true);
+  updateAttackProgress(Attack.getSearchSummary(state));
+
+  try {
+    while (!state.done && !token.cancelled) {
+      Attack.advanceSearch(state, 64);
+      updateAttackProgress(Attack.getSearchSummary(state));
+      if (!state.done) await yieldAttackSearch();
+    }
+
+    const summary = Attack.getSearchSummary(state);
+    const cancelled = token.cancelled && !state.done;
+    updateAttackProgress(summary, { complete: !cancelled, cancelled });
+    displayNarrowingSummary(summary, cancelled);
+    displayAttackResults(summary, settings, cancelled);
+  } catch (error) {
+    console.error(error);
+    displayAttackErrors([t('searchFailed')]);
+    document.getElementById('attack-progress').hidden = true;
+  } finally {
+    if (activeAttackSearch === token) activeAttackSearch = null;
+    setAttackControlsRunning(false);
+    const cancelButton = document.getElementById('attack-cancel-btn');
+    if (cancelButton) cancelButton.disabled = false;
+  }
 }
 
 /**
@@ -2907,6 +2882,10 @@ function bindAttackEvents() {
   const attackRunBtn = document.getElementById('attack-run-btn');
   if (attackRunBtn) {
     attackRunBtn.addEventListener('click', runKnownPlaintextAttack);
+  }
+  const attackCancelBtn = document.getElementById('attack-cancel-btn');
+  if (attackCancelBtn) {
+    attackCancelBtn.addEventListener('click', cancelKnownPlaintextAttack);
   }
 
   // Ciphertext input - generate grid and filter to ASCII only

@@ -20,6 +20,7 @@
   - `index.html` - UI構造
   - `style.css` - スタイル定義
   - `logic.js` - DOMに依存しない暗号処理と検証
+  - `attack-core.js` - DOMに依存しない分割探索と候補集計
   - `messages.js` - 日本語・英語の表示文言
   - `main.js` - UI、保存、初期位置探索
 - 外部ライブラリ: 使用しない（Vanilla JS）
@@ -284,13 +285,15 @@ URLパラメータはlocalStorageより優先される。
 
 ```
 1. 有効なスクランブラー数 n を取得
-2. 26^n 通りの初期位置組み合わせを生成
-3. 各組み合わせについて:
+2. 26^n 通りの初期位置組み合わせを64通りずつ生成
+3. 各バッチの間でブラウザーへ制御を返し、進捗表示とキャンセル操作を受け付ける
+4. 各組み合わせについて:
    a. 設定オブジェクトを構築
-   b. 暗号文を復号モードで処理
-   c. 既知平文の各位置で文字が一致するか判定
-   d. すべて一致したら候補として記録
-4. すべての候補をリスト表示
+   b. 復号モードで既知文字の最終位置まで処理
+   c. 既知文字を入力位置の左から照合し、一致する接頭部分の長さを数える
+   d. 各既知文字を追加した段階で残る候補数を集計
+   e. すべて一致したら正確な一致件数を増やし、先頭100件だけを画面表示用に保持
+5. 候補の詳細が開かれたときだけ全文の処理トレースを生成
 ```
 
 ### 10.4 探索空間
@@ -305,10 +308,10 @@ URLパラメータはlocalStorageより優先される。
 
 | 関数名 | 説明 |
 |--------|------|
-| `indexToPositions(index, count)` | 線形インデックスを位置配列に変換 |
-| `buildAttackSettings(positions, baseSettings)` | テスト用設定オブジェクトを構築 |
-| `testPositionCombination(settings)` | 単一組み合わせをテスト |
-| `performKnownPlaintextAttack(settings)` | メイン探索関数 |
+| `Attack.createSearchState(settings)` | 探索空間・候補数・絞り込み集計を初期化 |
+| `Attack.advanceSearch(state, 64)` | 最大64通りを処理して進捗を返す |
+| `Attack.getSearchSummary(state)` | 正確な一致件数・保持候補・絞り込み表を返す |
+| `Attack.buildAttackSettings(positions, baseSettings)` | テスト用設定オブジェクトを構築 |
 | `generatePlaintextGrid(ciphertext)` | 既知平文入力グリッドを生成 |
 | `getKnownPlaintextFromGrid()` | グリッドから{position, char}ペアを収集 |
 
@@ -318,6 +321,8 @@ URLパラメータはlocalStorageより優先される。
 - 暗号文は最大200文字
 - 動的HTML生成時は`escapeHtml()`でエスケープ
 - 解析タブ専用の設定を使用（メインタブの設定を直接参照しない）
+- 一致件数は全件を数えるが、DOMへ描画する候補は先頭100件に制限
+- キャンセル時の候補数と絞り込み表は、確認済み範囲だけの途中結果と明示
 
 ---
 
@@ -347,6 +352,8 @@ URLパラメータはlocalStorageより優先される。
 - カスタムリフレクターの自己逆性・固定点検査
 - ノッチ境界とZ→Aカスケード
 - 非英字の非変換・非ステップ
+- 64通り単位の分割探索、途中進捗、候補保持上限
+- 既知文字追加による候補数が単調非増加であること
 - 日英キー、CSP、入力上限、モバイル1列契約
 
 ---

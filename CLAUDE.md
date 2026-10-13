@@ -12,7 +12,7 @@ Cypher Enigma Simulator - a simplified Enigma-style cipher simulator for solving
 
 - Static web app (GitHub Pages deployment)
 - Vanilla JavaScript only - no frameworks or external dependencies
-- Single-page architecture: `index.html`, `style.css`, `logic.js`, `messages.js`, `main.js`
+- Single-page architecture: `index.html`, `style.css`, `logic.js`, `attack-core.js`, `messages.js`, `main.js`
 
 ## Development
 
@@ -30,7 +30,7 @@ npm test
 
 ### Cipher Flow (per character, reflector enabled)
 
-1. Rotor rotation (direction depends on mode)
+1. Scrambler stepping to the left before each A-Z letter
 2. Plugboard (input substitution)
 3. Forward scrambler pass (1→N)
 4. Reflector
@@ -65,16 +65,17 @@ With the reflector disabled, encrypt traverses the scramblers forward once and d
 1. User sets plugboard, scrambler wirings, and reflector in the analysis tab
 2. User enters ciphertext (plaintext grid is auto-generated)
 3. User fills in known plaintext characters at corresponding positions
-4. Attack function iterates through all 26^n position combinations
-5. For each combination, decrypt ciphertext and check if all known plaintext positions match
-6. Display matching candidates with trace information
+4. `attack-core.js` checks all 26^n positions in batches of 64
+5. Between batches, the UI updates checked/total/match counts and accepts cancellation
+6. For each known letter added from left to right, count how many candidates remain
+7. Count all matches, retain the first 100 for display, and generate a trace only when opened
 
 ### Key Functions
 
-- `indexToPositions(index, count)`: Convert linear index to position array
-- `buildAttackSettings(positions, baseSettings)`: Construct settings object for testing
-- `testPositionCombination(settings)`: Test a single position combination
-- `performKnownPlaintextAttack(settings)`: Main brute-force search function
+- `Attack.createSearchState(settings)`: Initialize a resumable search
+- `Attack.advanceSearch(state, batchSize)`: Check one batch
+- `Attack.getSearchSummary(state)`: Return progress, exact match count, retained candidates, and narrowing rows
+- `Attack.buildAttackSettings(positions, baseSettings)`: Construct settings for one position combination
 - `generatePlaintextGrid(ciphertext)`: Generate UI grid for plaintext input
 - `getKnownPlaintextFromGrid()`: Collect {position, char} pairs from grid
 
@@ -90,6 +91,8 @@ With the reflector disabled, encrypt traverses the scramblers forward once and d
 - HTML escaping via `escapeHtml()` for all dynamic content inserted via `innerHTML`
 - No external dependencies (reduces supply chain risk)
 - Known-plaintext ciphertext limit: 200 characters
+- Exact match counts are retained, but no more than 100 candidate cards are inserted into the DOM
+- Cancelled results are labelled as partial and cover only checked combinations
 
 ## UI Skills
 
