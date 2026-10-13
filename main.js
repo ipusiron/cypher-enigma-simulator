@@ -3,26 +3,73 @@
  * Cypher パズル用 簡略エニグマシミュレーター
  */
 
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const Core = globalThis.CypherEnigmaCore;
+const Messages = globalThis.CypherEnigmaMessages;
+if (!Core || !Messages) {
+  throw new Error('Application dependencies are unavailable.');
+}
 
-// =================================
-// Preset Wirings
-// =================================
-const PRESET_WIRINGS = {
-  scrambler: [
-    { name: 'カスタム', wiring: '' },
-    { name: 'Enigma I', wiring: 'EKMFLGDQVZNTOWYHXUSPAIBRCJ' },
-    { name: 'Enigma II', wiring: 'AJDKSIRUXBLHWTMCQGZNPYFVOE' },
-    { name: 'Enigma III', wiring: 'BDFHJLCPRTXVZNYEIWGAKMUSQO' },
-    { name: 'Enigma IV', wiring: 'ESOVPZJAYQUIRHXLNFTGKDCMWB' },
-    { name: 'Enigma V', wiring: 'VZBRGITYUPSDNHLXAWMJQOFECK' }
-  ],
-  reflector: [
-    { name: 'カスタム', wiring: '' },
-    { name: 'Reflector B', wiring: 'YRUHQSLDPXNGOKMIEBFZCWVJAT' },
-    { name: 'Reflector C', wiring: 'FVPJIAOYEDRZXWGCTKUQSBNMHL' }
-  ]
-};
+const { ALPHABET, PRESET_WIRINGS } = Core;
+const LANGUAGE_STORAGE_KEY = 'cypher-enigma-language';
+let currentLanguage = 'ja';
+let lastAttackResults = null;
+let debouncedSaveSettings = null;
+
+function interpolate(template, variables = {}) {
+  return template.replace(/\{(\w+)\}/g, (match, key) => (
+    Object.prototype.hasOwnProperty.call(variables, key) ? String(variables[key]) : match
+  ));
+}
+
+function t(key, variables = {}) {
+  const dictionary = Messages[currentLanguage] || Messages.ja;
+  return interpolate(dictionary[key] || Messages.ja[key] || key, variables);
+}
+
+function getStoredLanguage() {
+  try {
+    return localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'en' ? 'en' : 'ja';
+  } catch (error) {
+    return 'ja';
+  }
+}
+
+function storeLanguage(language) {
+  try {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  } catch (error) {
+    // The language toggle still works if storage is unavailable.
+  }
+}
+
+function applyStaticTranslations() {
+  document.documentElement.lang = currentLanguage;
+  document.title = t('documentTitle');
+  document.querySelectorAll('[data-i18n]').forEach((element) => {
+    element.textContent = t(element.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((element) => {
+    element.placeholder = t(element.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll('[data-i18n-aria-label]').forEach((element) => {
+    element.setAttribute('aria-label', t(element.dataset.i18nAriaLabel));
+  });
+}
+
+function setLanguage(language, options = {}) {
+  currentLanguage = language === 'en' ? 'en' : 'ja';
+  applyStaticTranslations();
+  populatePresets();
+  populateAttackPresets();
+  updateAttackSearchSpaceDisplay();
+  if (document.getElementById('input-text')?.value) updateOutput();
+  if (lastAttackResults) displayAttackResults(lastAttackResults.candidates, lastAttackResults.searchInfo, false);
+  if (!document.getElementById('attack-ciphertext')?.value) generatePlaintextGrid('');
+  if (pendingApplyPositions) {
+    document.getElementById('apply-confirm-message').textContent = t('applyPositionsQuestion', { positions: pendingApplyPositions });
+  }
+  if (options.persist !== false) storeLanguage(currentLanguage);
+}
 
 // =================================
 // Storage Module (with security)
@@ -286,6 +333,10 @@ function generateShareURL() {
     params.set('m', 'd');
   }
 
+  if (currentLanguage === 'en') {
+    params.set('lang', 'en');
+  }
+
   // Scrambler order (only if not default)
   if (typeof getScramblerOrder === 'function') {
     const order = getScramblerOrder(false);
@@ -306,6 +357,10 @@ function loadFromURL() {
   try {
     const params = new URLSearchParams(window.location.search);
     if (params.toString() === '') return false;
+
+    if (params.get('lang') === 'en') {
+      currentLanguage = 'en';
+    }
 
     // Plugboard
     if (params.has('pb')) {
@@ -384,7 +439,7 @@ function copyShareURL() {
     const btn = document.getElementById('share-btn');
     if (btn) {
       const originalText = btn.textContent;
-      btn.textContent = 'コピー完了';
+      btn.textContent = t('copyDone');
       btn.classList.add('copied');
       setTimeout(() => {
         btn.textContent = originalText;
@@ -392,7 +447,7 @@ function copyShareURL() {
       }, 1500);
     }
   }).catch(() => {
-    alert('URLのコピーに失敗しました');
+    alert(t('shareCopyFailed'));
   });
 }
 
@@ -406,31 +461,25 @@ function copyShareURL() {
  * @returns {{valid: boolean, error: string|null}} Validation result
  */
 function validateWiring(wiring) {
-  if (!wiring || wiring.trim() === '') {
-    return { valid: true, error: null }; // Empty is allowed (will be skipped)
-  }
+  const result = Core.validateWiring(wiring);
+  return { ...result, error: result.valid ? null : validationMessage(result) };
+}
 
-  const normalized = wiring.toUpperCase().trim();
+function validationMessage(result) {
+  const messageKeys = {
+    required: 'wiringRequired',
+    length: 'wiringLength',
+    alphabet: 'wiringAlphabet',
+    duplicate: 'wiringDuplicate',
+    reflectorNotSelfInverse: 'reflectorNotSelfInverse',
+    reflectorFixedPoint: 'reflectorFixedPoint'
+  };
+  return t(messageKeys[result.code] || result.code, result);
+}
 
-  if (normalized.length !== 26) {
-    return { valid: false, error: `26文字必要です（現在${normalized.length}文字）` };
-  }
-
-  // Check for non-alphabetic characters
-  if (!/^[A-Z]+$/.test(normalized)) {
-    return { valid: false, error: 'A-Zのアルファベットのみ使用できます' };
-  }
-
-  // Check for duplicates
-  const seen = new Set();
-  for (const char of normalized) {
-    if (seen.has(char)) {
-      return { valid: false, error: `文字 "${char}" が重複しています` };
-    }
-    seen.add(char);
-  }
-
-  return { valid: true, error: null };
+function validateReflectorWiring(wiring) {
+  const result = Core.validateReflectorWiring(wiring);
+  return { ...result, error: result.valid ? null : validationMessage(result) };
 }
 
 /**
@@ -448,7 +497,7 @@ function validateAllSettings() {
     const wiring = document.getElementById(`wiring${i}`).value;
     const result = validateWiring(wiring);
     if (!result.valid) {
-      errors.push(`Scrambler ${i}: ${result.error}`);
+      errors.push(t('scramblerError', { number: i, message: result.error }));
       document.getElementById(`wiring${i}`).classList.add('input-error');
     } else {
       document.getElementById(`wiring${i}`).classList.remove('input-error');
@@ -459,9 +508,9 @@ function validateAllSettings() {
   const reflectorEnabled = document.getElementById('reflector-enabled').checked;
   if (reflectorEnabled) {
     const reflector = document.getElementById('reflector').value;
-    const result = validateWiring(reflector);
+    const result = validateReflectorWiring(reflector);
     if (!result.valid) {
-      errors.push(`Reflector: ${result.error}`);
+      errors.push(t('reflectorError', { message: result.error }));
       document.getElementById('reflector').classList.add('input-error');
     } else {
       document.getElementById('reflector').classList.remove('input-error');
@@ -823,7 +872,7 @@ function rotateActiveScramblers(scramblers, direction) {
  * @param {Object} settings - UI settings
  * @returns {Object} Cipher state
  */
-function initializeState(settings) {
+function legacyInitializeState(settings) {
   const scramblers = [];
 
   for (let i = 0; i < settings.scramblers.length; i++) {
@@ -862,6 +911,10 @@ function initializeState(settings) {
     reflectorEnabled: settings.reflectorEnabled,
     direction: 1  // Always left rotation (position increases A→B→C)
   };
+}
+
+function initializeState(settings) {
+  return Core.initializeState(settings);
 }
 
 /**
@@ -934,7 +987,7 @@ function scramblerReverse(inputPos, scrambler) {
   return shiftedAlpha.indexOf(shiftedWiringChar);
 }
 
-function processChar(char, state, logEntries) {
+function legacyProcessChar(char, state, logEntries) {
   const { scramblers, plugboardMap, reflector, reflectorEnabled, direction } = state;
 
   // 1. Rotate scramblers (before processing)
@@ -1025,6 +1078,10 @@ function processChar(char, state, logEntries) {
   return current;
 }
 
+function processChar(char, state, logEntries) {
+  return Core.processChar(char, state, logEntries, currentLanguage);
+}
+
 /**
  * Generates initial state log showing unshifted configuration
  * @param {Object} state - Cipher state
@@ -1090,7 +1147,7 @@ function generateInitialStateLog(state) {
  * @param {Object} settings - UI settings
  * @returns {{output: string, log: string[]}} Result
  */
-function processText(text, settings) {
+function legacyProcessText(text, settings) {
   const state = initializeState(settings);
   const output = [];
   const logEntries = [];
@@ -1120,6 +1177,10 @@ function processText(text, settings) {
   }
 
   return { output: output.join(''), log: logEntries.join('\n\n') };
+}
+
+function processText(text, settings) {
+  return Core.processText(text, settings, { language: currentLanguage });
 }
 
 // =================================
@@ -1175,11 +1236,18 @@ function updateOutput() {
 
   const settings = getSettings();
   const inputText = document.getElementById('input-text').value;
-
-  const { output, log } = processText(inputText, settings);
-
-  document.getElementById('output-text').value = output;
-  document.getElementById('log-output').textContent = log;
+  try {
+    const { output, log } = processText(inputText, settings);
+    document.getElementById('output-text').value = output;
+    document.getElementById('log-output').textContent = log;
+  } catch (error) {
+    if (error?.code === 'inputTooLong' && errorArea) {
+      errorArea.textContent = t('inputTooLong', { max: Core.MAX_INPUT_LENGTH.toLocaleString(currentLanguage) });
+      errorArea.hidden = false;
+      return;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -1232,7 +1300,7 @@ function handleCopy(btn) {
   navigator.clipboard.writeText(text).then(() => {
     // Show copied feedback
     const originalText = btn.textContent;
-    btn.textContent = 'コピー完了';
+    btn.textContent = t('copyDone');
     btn.classList.add('copied');
 
     setTimeout(() => {
@@ -1241,9 +1309,9 @@ function handleCopy(btn) {
     }, 1500);
   }).catch(() => {
     // Fallback for older browsers
-    btn.textContent = 'コピー失敗';
+    btn.textContent = t('copyFailed');
     setTimeout(() => {
-      btn.textContent = 'コピー';
+      btn.textContent = t('copy');
     }, 1500);
   });
 }
@@ -1256,13 +1324,28 @@ function populatePresets() {
   document.querySelectorAll('.preset-select').forEach(select => {
     const isReflector = select.dataset.type === 'reflector';
     const presets = isReflector ? PRESET_WIRINGS.reflector : PRESET_WIRINGS.scrambler;
+    const selectedValue = select.value;
+    select.innerHTML = '';
 
     presets.forEach((preset, index) => {
       const option = document.createElement('option');
       option.value = index;
-      option.textContent = preset.name;
+      option.textContent = t(preset.nameKey);
       select.appendChild(option);
     });
+    if ([...select.options].some(option => option.value === selectedValue)) {
+      select.value = selectedValue;
+    }
+  });
+}
+
+function syncPresetSelections() {
+  document.querySelectorAll('.preset-select').forEach((select) => {
+    const isReflector = select.dataset.type === 'reflector';
+    const presets = isReflector ? PRESET_WIRINGS.reflector : PRESET_WIRINGS.scrambler;
+    const wiring = document.getElementById(select.dataset.target)?.value.trim().toUpperCase() || '';
+    const matchingIndex = presets.findIndex((preset) => preset.wiring === wiring);
+    select.value = String(matchingIndex >= 0 ? matchingIndex : 0);
   });
 }
 
@@ -1283,6 +1366,7 @@ function handlePresetChange(select) {
   if (preset && preset.wiring) {
     targetInput.value = preset.wiring;
     targetInput.classList.remove('input-error');
+    targetInput.dispatchEvent(new Event('input', { bubbles: true }));
   }
   // If "カスタム" is selected (empty wiring), don't change the input
 }
@@ -1307,9 +1391,30 @@ function switchTab(tabId) {
  * Binds event listeners
  */
 function bindEvents() {
+  const languageToggle = document.getElementById('language-toggle');
+  if (languageToggle) {
+    languageToggle.addEventListener('click', () => {
+      setLanguage(currentLanguage === 'ja' ? 'en' : 'ja');
+    });
+  }
+
   // Tab navigation
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+  const tabButtons = [...document.querySelectorAll('.tab-btn')];
+  tabButtons.forEach((button, index) => {
+    button.addEventListener('keydown', (event) => {
+      let nextIndex = index;
+      if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabButtons.length;
+      else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabButtons.length) % tabButtons.length;
+      else if (event.key === 'Home') nextIndex = 0;
+      else if (event.key === 'End') nextIndex = tabButtons.length - 1;
+      else return;
+      event.preventDefault();
+      switchTab(tabButtons[nextIndex].dataset.tab);
+      tabButtons[nextIndex].focus();
+    });
   });
 
   // Process button - main trigger for processing
@@ -1452,22 +1557,29 @@ function debounce(func, wait) {
  * Sets up auto-save on settings change
  */
 function setupAutoSave() {
-  const debouncedSave = debounce(saveSettings, 500);
+  debouncedSaveSettings = debounce(saveSettings, 500);
+  const debouncedRender = debounce(() => {
+    if (document.getElementById('input-text')?.value) updateOutput();
+  }, 300);
+  const handleSettingMutation = () => {
+    debouncedSaveSettings();
+    debouncedRender();
+  };
 
   // Monitor all setting inputs
   const settingInputs = document.querySelectorAll(
-    '#plugboard, #wiring1, #wiring2, #wiring3, #position1, #position2, #position3, #reflector'
+    '#plugboard, #wiring1, #wiring2, #wiring3, #position1, #position2, #position3, #notch1, #notch2, #notch3, #reflector'
   );
   settingInputs.forEach(input => {
-    input.addEventListener('input', debouncedSave);
+    input.addEventListener('input', handleSettingMutation);
   });
 
   // Monitor checkboxes and radio buttons
   const checkboxes = document.querySelectorAll(
-    '#plugboard-enabled, #scrambler1-enabled, #scrambler2-enabled, #scrambler3-enabled, #reflector-enabled, input[name="mode"]'
+    '#plugboard-enabled, #scrambler1-enabled, #scrambler2-enabled, #scrambler3-enabled, #notch1-enabled, #notch2-enabled, #notch3-enabled, #reflector-enabled, input[name="mode"]'
   );
   checkboxes.forEach(checkbox => {
-    checkbox.addEventListener('change', debouncedSave);
+    checkbox.addEventListener('change', handleSettingMutation);
   });
 }
 
@@ -1709,8 +1821,11 @@ function reorderScramblers(draggedEl, targetEl) {
   updateScramblerLabels(container, isAttackTab);
 
   // Trigger auto-save
-  if (typeof debouncedSave === 'function') {
-    debouncedSave();
+  if (typeof debouncedSaveSettings === 'function') {
+    debouncedSaveSettings();
+  }
+  if (document.getElementById('input-text')?.value) {
+    updateOutput();
   }
 }
 
@@ -2002,6 +2117,9 @@ function setupRealtimeProcessing() {
  * Initializes the application
  */
 function init() {
+  const requestedLanguage = new URLSearchParams(window.location.search).get('lang');
+  currentLanguage = requestedLanguage === 'en' ? 'en' : getStoredLanguage();
+  applyStaticTranslations();
   populatePresets();
 
   // Load settings: URL params take priority over localStorage
@@ -2009,6 +2127,7 @@ function init() {
   if (!loadedFromURL) {
     loadSettings();
   }
+  syncPresetSelections();
 
   bindEvents();
   bindAttackEvents();
@@ -2227,11 +2346,13 @@ function validateAttackSettings(settings) {
   const errors = [];
 
   if (!settings.ciphertext || !settings.ciphertext.trim()) {
-    errors.push('暗号文を入力してください');
+    errors.push(t('attackCipherRequired'));
+  } else if (settings.ciphertext.length > Core.MAX_ATTACK_LENGTH) {
+    errors.push(t('attackTooLong', { max: Core.MAX_ATTACK_LENGTH }));
   }
 
   if (!settings.knownPairs || settings.knownPairs.length === 0) {
-    errors.push('既知平文を少なくとも1文字入力してください');
+    errors.push(t('attackKnownRequired'));
   }
 
   const cipherAlphaLength = (settings.ciphertext?.match(/[A-Za-z]/g) || []).length;
@@ -2240,7 +2361,7 @@ function validateAttackSettings(settings) {
   if (settings.knownPairs) {
     for (const pair of settings.knownPairs) {
       if (pair.pos >= cipherAlphaLength) {
-        errors.push(`位置 ${pair.pos} が暗号文の長さを超えています`);
+        errors.push(t('attackPositionOutOfRange', { position: pair.pos }));
         break;
       }
     }
@@ -2251,7 +2372,25 @@ function validateAttackSettings(settings) {
   ) || [];
 
   if (enabledScramblers.length === 0) {
-    errors.push('有効なスクランブラーが設定されていません（暗号化・復号タブで設定してください）');
+    errors.push(t('attackScramblerRequired'));
+  }
+
+  settings.baseSettings?.scramblers?.forEach((scrambler) => {
+    if (!scrambler.enabled) return;
+    const result = Core.validateWiring(scrambler.wiring, { allowEmpty: false });
+    if (!result.valid) {
+      errors.push(t('scramblerError', {
+        number: scrambler.id,
+        message: validationMessage(result)
+      }));
+    }
+  });
+
+  if (settings.baseSettings?.reflectorEnabled) {
+    const result = Core.validateReflectorWiring(settings.baseSettings.reflector);
+    if (!result.valid) {
+      errors.push(t('reflectorError', { message: validationMessage(result) }));
+    }
   }
 
   return { valid: errors.length === 0, errors };
@@ -2270,7 +2409,7 @@ function generatePlaintextGrid(ciphertext) {
   if (!gridContainer) return;
 
   if (!ciphertext || !ciphertext.trim()) {
-    gridContainer.innerHTML = '<p class="grid-placeholder">暗号文を入力すると、ここに入力欄が表示されます</p>';
+    gridContainer.innerHTML = `<p class="grid-placeholder">${escapeHtml(t('gridPlaceholder'))}</p>`;
     return;
   }
 
@@ -2460,55 +2599,56 @@ function showAttackProgress(show) {
  * Displays attack results
  * @param {Array} candidates - Array of candidate results
  */
-function displayAttackResults(candidates, searchInfo) {
+function displayAttackResults(candidates, searchInfo, remember = true) {
   const resultsContainer = document.getElementById('attack-results');
   const countDisplay = document.getElementById('attack-result-count');
 
   if (!resultsContainer || !countDisplay) return;
 
-  if (candidates.length === 0) {
-    countDisplay.textContent = '候補なし';
-    resultsContainer.innerHTML = '<p class="no-results">条件に一致する初期位置は見つかりませんでした。</p>';
+  const renderedCandidates = searchInfo?.baseSettings
+    ? candidates.map((candidate) => {
+      const positionIndexes = candidate.positions.map((position) => ALPHABET.indexOf(position));
+      const settings = buildAttackSettings(positionIndexes, searchInfo.baseSettings);
+      return { ...candidate, log: processText(searchInfo.ciphertext, settings).log };
+    })
+    : candidates;
+
+  if (remember) {
+    lastAttackResults = { candidates, searchInfo };
+  }
+
+  if (renderedCandidates.length === 0) {
+    countDisplay.textContent = t('noCandidates');
+    resultsContainer.innerHTML = `<p class="no-results">${escapeHtml(t('noCandidateBody'))}</p>`;
     return;
   }
 
-  countDisplay.textContent = `${candidates.length}件の候補`;
+  countDisplay.textContent = t('candidateCount', { count: renderedCandidates.length });
 
-  // Build match reason display for each candidate
-  const buildMatchReason = (c) => {
-    if (!c.matchedPairs || c.matchedPairs.length === 0) return '';
-
-    const pairsList = c.matchedPairs.map(p =>
-      `位置${p.pos}: 暗号文→平文 で "${escapeHtml(p.char)}" に一致`
-    ).join('\n');
-
-    return pairsList;
-  };
-
-  resultsContainer.innerHTML = candidates.map((c, i) => `
+  resultsContainer.innerHTML = renderedCandidates.map((c, i) => `
     <div class="attack-result-item">
       <div class="result-header">
         <span class="result-number">#${i + 1}</span>
         <span class="result-positions">${escapeHtml(c.positionsString)}</span>
         <button type="button" class="btn-apply-result" data-positions="${escapeHtml(c.positionsString)}">
-          設定に適用
+          ${escapeHtml(t('applyToSettings'))}
         </button>
       </div>
       <div class="result-match-reason">
-        <label>特定理由:</label>
+        <label>${escapeHtml(t('reason'))}:</label>
         <div class="match-reason-content">
-          初期位置 <strong>${escapeHtml(c.positionsString)}</strong> で復号した結果、指定された全ての既知平文と一致
+          ${escapeHtml(t('candidateReason', { positions: c.positionsString }))}
           <ul class="match-pairs-list">
-            ${c.matchedPairs.map(p => `<li>位置${p.pos}: "${escapeHtml(p.char)}" と一致</li>`).join('')}
+            ${c.matchedPairs.map(p => `<li>${escapeHtml(t('matchedAt', { position: p.pos, char: p.char }))}</li>`).join('')}
           </ul>
         </div>
       </div>
       <div class="result-decrypted">
-        <label>復号結果:</label>
+        <label>${escapeHtml(t('decryptedResult'))}:</label>
         <code>${escapeHtml(c.decryptedFull)}</code>
       </div>
       <details class="result-trace">
-        <summary>処理トレース（復号の詳細）</summary>
+        <summary>${escapeHtml(t('traceDetails'))}</summary>
         <pre class="trace-log">${escapeHtml(c.log)}</pre>
       </details>
     </div>
@@ -2536,7 +2676,7 @@ function showApplyConfirmDialog(positionsString) {
   const message = document.getElementById('apply-confirm-message');
 
   if (modal && message) {
-    message.textContent = `スクランブラーの初期位置を ${positionsString} に設定しますか？`;
+    message.textContent = t('applyPositionsQuestion', { positions: positionsString });
     modal.hidden = false;
   }
 }
@@ -2634,6 +2774,7 @@ function applyAttackResult() {
   switchTab('cipher');
 
   // Save settings
+  syncPresetSelections();
   saveSettings();
 }
 
@@ -2646,7 +2787,10 @@ function switchTab(tabId) {
   const tabPanels = document.querySelectorAll('.tab-panel');
 
   tabBtns.forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tabId);
+    const active = btn.dataset.tab === tabId;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', String(active));
+    btn.tabIndex = active ? 0 : -1;
   });
 
   tabPanels.forEach(panel => {
@@ -2668,12 +2812,15 @@ function updateAttackSearchSpaceDisplay() {
   }).length;
 
   if (enabledCount === 0) {
-    infoEl.textContent = '有効なスクランブラーがありません';
+    infoEl.textContent = t('noActiveScrambler');
     return;
   }
 
   const combinations = Math.pow(26, enabledCount);
-  infoEl.textContent = `${combinations.toLocaleString()} 通り (26^${enabledCount})`;
+  infoEl.textContent = t('combinations', {
+    count: combinations.toLocaleString(currentLanguage),
+    power: enabledCount
+  });
 }
 
 /**
@@ -2695,7 +2842,7 @@ function runKnownPlaintextAttack() {
   // Use setTimeout to allow UI to update
   setTimeout(() => {
     const candidates = performKnownPlaintextAttack(settings);
-    displayAttackResults(candidates);
+    displayAttackResults(candidates, settings);
     showAttackProgress(false);
   }, 10);
 }
@@ -2708,28 +2855,34 @@ function populateAttackPresets() {
   for (let i = 1; i <= 3; i++) {
     const select = document.getElementById(`attack-preset${i}`);
     if (select) {
+      const selectedValue = select.value;
       select.innerHTML = '';
       PRESET_WIRINGS.scrambler.forEach(preset => {
         const option = document.createElement('option');
         option.value = preset.wiring;
-        option.textContent = preset.name;
+        option.textContent = t(preset.nameKey);
         select.appendChild(option);
       });
+      if ([...select.options].some(option => option.value === selectedValue)) {
+        select.value = selectedValue;
+      }
     }
   }
 
   // Reflector presets
   const reflectorSelect = document.getElementById('attack-preset-reflector');
   if (reflectorSelect) {
+    const selectedValue = reflectorSelect.value;
     reflectorSelect.innerHTML = '';
     PRESET_WIRINGS.reflector.forEach(preset => {
       const option = document.createElement('option');
       option.value = preset.wiring;
-      option.textContent = preset.name;
+      option.textContent = t(preset.nameKey);
       reflectorSelect.appendChild(option);
     });
-    // Set default to Reflector B
-    reflectorSelect.value = PRESET_WIRINGS.reflector[1]?.wiring || '';
+    reflectorSelect.value = [...reflectorSelect.options].some(option => option.value === selectedValue)
+      ? selectedValue
+      : (PRESET_WIRINGS.reflector[1]?.wiring || '');
   }
 }
 

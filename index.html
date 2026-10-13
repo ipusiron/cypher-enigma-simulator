@@ -13,22 +13,26 @@
 <body>
   <main class="container">
     <header>
-      <button type="button" id="help-btn" class="help-btn" aria-label="ヘルプ">?</button>
+      <div class="header-actions">
+        <button type="button" id="language-toggle" class="language-toggle" data-i18n="languageButton" data-i18n-aria-label="languageButtonAria" aria-label="表示言語を英語に切り替える">English</button>
+        <button type="button" id="help-btn" class="help-btn" data-i18n-aria-label="help" aria-label="ヘルプ">?</button>
+      </div>
       <h1>Cypher Enigma Simulator</h1>
-      <p class="subtitle">暗号解読ゲーム「Cypher」用の簡易エニグマシミュレーター</p>
+      <p class="subtitle" data-i18n="subtitle">暗号解読ゲーム「Cypher」用の簡略エニグマ学習ツール</p>
+      <p class="scope-note" data-i18n="scopeNote">Cypherのパズル仕様を優先した教材です。歴史的な実機エニグマを忠実に再現するものではありません。</p>
     </header>
 
     <!-- Confirm Modal -->
     <div id="confirm-modal" class="modal" hidden>
       <div class="modal-overlay"></div>
       <div class="modal-content modal-confirm">
-        <h2 id="confirm-title">確認</h2>
+        <h2 id="confirm-title" data-i18n="confirmTitle">確認</h2>
         <div class="modal-body">
-          <p id="confirm-message">すべての設定をリセットしますか？</p>
+          <p id="confirm-message" data-i18n="resetConfirm">すべての設定をリセットしますか？</p>
         </div>
         <div class="modal-actions">
-          <button type="button" id="confirm-cancel" class="btn-secondary">キャンセル</button>
-          <button type="button" id="confirm-ok" class="btn-danger">リセット</button>
+          <button type="button" id="confirm-cancel" class="btn-secondary" data-i18n="cancel">キャンセル</button>
+          <button type="button" id="confirm-ok" class="btn-danger" data-i18n="reset">リセット</button>
         </div>
       </div>
     </div>
@@ -37,97 +41,64 @@
     <div id="help-modal" class="modal" hidden>
       <div class="modal-overlay"></div>
       <div class="modal-content">
-        <button type="button" class="modal-close" aria-label="閉じる">&times;</button>
-        <h2>使い方</h2>
+        <button type="button" class="modal-close" data-i18n-aria-label="close" aria-label="閉じる">&times;</button>
+        <h2 data-i18n="helpTitle">使い方とモデルの違い</h2>
         <div class="modal-body">
-          <h3>概要</h3>
-          <p>このツールは、暗号解読ゲーム「Cypher」のエニグマ風パズルを解くための簡易シミュレーターです。</p>
+          <h3 data-i18n="overviewHeading">概要</h3>
+          <p data-i18n="overviewBody">Cypherのエニグマ風パズルを再現し、文字ごとの経路を確認するための簡略シミュレーターです。</p>
 
-          <h3>設定項目</h3>
+          <h3 data-i18n="modelHeading">2つの信号経路</h3>
           <dl>
-            <dt>Plugboard（プラグボード）</dt>
-            <dd>文字ペアを指定して入出力時に文字を交換します。例: <code>A-B, S-Z</code></dd>
-
-            <dt>Scrambler（スクランブラー）</dt>
-            <dd>26文字の配線を指定します。各文字処理前に回転します。最大3つまで設定可能。ドラッグハンドル（☰）をドラッグして順序を変更できます。並び替えても元のラベル番号（Scrambler 1, 2, 3）は維持されます。</dd>
-
-            <dt>位置</dt>
-            <dd>スクランブラーの初期位置（A-Z）を指定します。</dd>
-
-            <dt>ノッチ</dt>
-            <dd>カスケード回転（連動回転）の設定です。
-              <ul>
-                <li><strong>ON</strong>: 前段スクランブラーが設定位置を超えると次段が1回転</li>
-                <li><strong>OFF</strong>: 26回で1回転（従来動作）</li>
-              </ul>
-              <strong>注意</strong>: ノッチは「次のスクランブラー」の回転タイミングを決定します。最後のスクランブラーのノッチは効果がありません。</dd>
-
-            <dt>Reflector（リフレクター）</dt>
-            <dd>信号を折り返す配線です。通常は変更不要。</dd>
-
-            <dt>Mode（モード）</dt>
-            <dd>暗号化/復号を選択します。復号時は逆方向に回転します。</dd>
+            <dt data-i18n="reflectorModelTitle">リフレクター往復</dt>
+            <dd data-i18n="reflectorModelBody">順方向のスクランブラー、自己逆なリフレクター、逆方向のスクランブラーを通ります。同じ設定・同じ操作で暗号化と復号を行います。</dd>
+            <dt data-i18n="directModelTitle">直通（実験）</dt>
+            <dd data-i18n="directModelBody">リフレクターをOFFにすると、暗号化は順方向、復号は逆方向だけを通ります。これは歴史的エニグマの再現ではありません。</dd>
           </dl>
 
-          <h3>使用手順</h3>
+          <h3 data-i18n="settingHeading">設定項目</h3>
+          <dl>
+            <dt data-i18n="plugboardTerm">Plugboard（プラグボード）</dt>
+            <dd data-i18n="plugboardHelp">指定した文字ペアを、信号経路の入口と出口で交換します。例: A-B, S-Z</dd>
+            <dt data-i18n="scramblerTerm">Scrambler（スクランブラー）</dt>
+            <dd data-i18n="scramblerHelp">26文字の配線、初期位置、ノッチを設定します。最大3枚を並べ替えられます。</dd>
+            <dt data-i18n="positionTerm">位置</dt>
+            <dd data-i18n="positionHelp">各スクランブラーの処理開始前の位置（A〜Z）です。各文字の処理前に先頭が左へ1文字進みます。</dd>
+            <dt data-i18n="notchTerm">ノッチ</dt>
+            <dd data-i18n="notchHelp">前段が指定位置を越えたとき次段を1文字進めます。OFFではZからAへ戻るときに次段を進めます。実機のダブルステップは再現しません。</dd>
+            <dt data-i18n="reflectorTerm">Reflector（リフレクター）</dt>
+            <dd data-i18n="reflectorHelp">信号を折り返します。カスタム配線は26文字の置換、自己逆写像、固定点なしを満たす必要があります。</dd>
+            <dt data-i18n="modeTerm">Mode（モード）</dt>
+            <dd data-i18n="modeHelp">リフレクターONでは暗号化と復号は同じ経路です。OFFの直通実験だけ、暗号化と復号で通過方向が変わります。</dd>
+          </dl>
+
+          <h3 data-i18n="procedureHeading">使用手順</h3>
           <ol>
-            <li>パズルの指示に従って各設定を入力</li>
-            <li>暗号文または平文を入力テキスト欄に入力</li>
-            <li>「処理実行」ボタンをクリック</li>
-            <li>結果と内部状態ログを確認</li>
+            <li data-i18n="procedure1">設定を入力し、使用するコンポーネントをONにする</li>
+            <li data-i18n="procedure2">入力テキストを入力する</li>
+            <li data-i18n="procedure3">「処理実行」を押し、出力と処理トレースを確認する</li>
           </ol>
 
-          <h3>ログの見方</h3>
-          <p>内部状態ログでは、各文字の処理過程を視覚的に確認できます：</p>
+          <h3 data-i18n="cautionHeading">限界</h3>
           <ul>
-            <li><code>↓</code> : 入力位置</li>
-            <li><code>↑</code> : 出力位置</li>
-            <li>2行表示：上段がアルファベット、下段が配線</li>
+            <li data-i18n="caution1">リング設定、ダブルステップ、軍用機の運用手順は扱いません。</li>
+            <li data-i18n="caution2">既知平文攻撃は初期位置の総当たり教材であり、未知の配線や鍵全体を解読するものではありません。</li>
+            <li data-i18n="caution3">A〜Z以外は変換せず、そのまま出力します。</li>
           </ul>
-
-          <h3>注意事項</h3>
-          <ul>
-            <li>A-Z以外の文字はそのまま通過します</li>
-            <li>配線が空またはOFFのコンポーネントは無効になります</li>
-            <li>本ツールは簡略化されており、実際のエニグマとは異なります</li>
-          </ul>
-
-          <h3>解析支援：既知平文攻撃</h3>
-          <p>暗号文の一部に対応する平文がわかっている場合、スクランブラーの初期位置を特定できます。</p>
-          <dl>
-            <dt>前提条件</dt>
-            <dd>プラグボード、スクランブラー配線、リフレクターの設定がわかっていること</dd>
-
-            <dt>使い方</dt>
-            <dd>
-              <ol>
-                <li>「解析支援」タブを開く</li>
-                <li>プラグボード・スクランブラー・リフレクターを設定</li>
-                <li>暗号文を入力（グリッドが生成される）</li>
-                <li>既知の平文を対応する位置に入力（空欄は不明）</li>
-                <li>「探索実行」をクリック</li>
-                <li>候補から「設定に適用」で暗号化・復号タブに反映</li>
-              </ol>
-            </dd>
-
-            <dt>探索空間</dt>
-            <dd>スクランブラー1枚: 26通り、2枚: 676通り、3枚: 17,576通り</dd>
-          </dl>
         </div>
       </div>
     </div>
 
     <!-- Tab Navigation -->
-    <nav class="tab-nav">
-      <button type="button" class="tab-btn active" data-tab="cipher">暗号化・復号</button>
-      <button type="button" class="tab-btn" data-tab="analysis">解析支援</button>
+    <nav class="tab-nav" aria-label="Tabs" role="tablist">
+      <button type="button" class="tab-btn active" id="tab-cipher-button" data-tab="cipher" data-i18n="tabCipher" role="tab" aria-selected="true" aria-controls="tab-cipher">暗号化・復号</button>
+      <button type="button" class="tab-btn" id="tab-analysis-button" data-tab="analysis" data-i18n="tabAnalysis" role="tab" aria-selected="false" aria-controls="tab-analysis" tabindex="-1">解析支援</button>
     </nav>
 
     <!-- Tab: Cipher -->
-    <div id="tab-cipher" class="tab-panel active">
+    <div id="tab-cipher" class="tab-panel active" role="tabpanel" aria-labelledby="tab-cipher-button">
       <!-- 1. Settings Section -->
       <section class="settings">
-      <h2 class="section-title">Settings</h2>
+      <h2 class="section-title" data-i18n="settings">設定</h2>
       <fieldset class="toggleable" data-target="plugboard-inputs">
         <legend>
           <label class="toggle-label">
@@ -136,16 +107,16 @@
           </label>
         </legend>
         <div id="plugboard-inputs" class="toggle-content">
-          <label for="plugboard">文字ペア</label>
+          <label for="plugboard" data-i18n="letterPairs">文字ペア</label>
           <input type="text" id="plugboard" placeholder="A-B, S-Z, U-Y">
-          <p class="helper-text">未指定の文字はそのまま通過します</p>
+          <p class="helper-text" data-i18n="unmappedPass">未指定の文字はそのまま通過します。重複する文字ペアは最初の指定だけを使います。</p>
         </div>
       </fieldset>
 
       <div class="scramblers-container">
         <fieldset class="scrambler toggleable" data-scrambler-id="1">
           <legend>
-            <button type="button" class="drag-handle" aria-label="ドラッグして並び替え">
+            <button type="button" class="drag-handle" data-i18n-aria-label="dragReorder" aria-label="矢印キーまたはドラッグで並び替える">
               <span class="drag-handle-icon">&#x2630;</span>
             </button>
             <label class="toggle-label">
@@ -155,21 +126,21 @@
           </legend>
           <div class="scrambler-inputs toggle-content">
             <div class="preset-group">
-              <label for="preset1">プリセット</label>
+              <label for="preset1" data-i18n="preset">プリセット</label>
               <select id="preset1" class="preset-select" data-target="wiring1"></select>
             </div>
             <div class="wiring-group">
-              <label for="wiring1">配線 (26文字)</label>
+              <label for="wiring1" data-i18n="wiring26">配線（26文字）</label>
               <input type="text" id="wiring1" class="wiring" maxlength="26" placeholder="EKMFLGDQVZNTOWYHXUSPAIBRCJ">
             </div>
             <div class="position-group">
-              <label for="position1">位置</label>
+              <label for="position1" data-i18n="position">位置</label>
               <input type="text" id="position1" class="position" maxlength="1" value="A">
             </div>
             <div class="notch-group">
               <label class="notch-toggle-label">
                 <input type="checkbox" id="notch1-enabled" class="notch-toggle" checked>
-                <span>ノッチ</span>
+                <span data-i18n="notch">ノッチ</span>
               </label>
               <input type="text" id="notch1" class="notch" maxlength="1" value="Z">
             </div>
@@ -178,7 +149,7 @@
 
         <fieldset class="scrambler toggleable" data-scrambler-id="2">
           <legend>
-            <button type="button" class="drag-handle" aria-label="ドラッグして並び替え">
+            <button type="button" class="drag-handle" data-i18n-aria-label="dragReorder" aria-label="矢印キーまたはドラッグで並び替える">
               <span class="drag-handle-icon">&#x2630;</span>
             </button>
             <label class="toggle-label">
@@ -188,21 +159,21 @@
           </legend>
           <div class="scrambler-inputs toggle-content">
             <div class="preset-group">
-              <label for="preset2">プリセット</label>
+              <label for="preset2" data-i18n="preset">プリセット</label>
               <select id="preset2" class="preset-select" data-target="wiring2"></select>
             </div>
             <div class="wiring-group">
-              <label for="wiring2">配線 (26文字)</label>
+              <label for="wiring2" data-i18n="wiring26">配線（26文字）</label>
               <input type="text" id="wiring2" class="wiring" maxlength="26" placeholder="AJDKSIRUXBLHWTMCQGZNPYFVOE">
             </div>
             <div class="position-group">
-              <label for="position2">位置</label>
+              <label for="position2" data-i18n="position">位置</label>
               <input type="text" id="position2" class="position" maxlength="1" value="A">
             </div>
             <div class="notch-group">
               <label class="notch-toggle-label">
                 <input type="checkbox" id="notch2-enabled" class="notch-toggle" checked>
-                <span>ノッチ</span>
+                <span data-i18n="notch">ノッチ</span>
               </label>
               <input type="text" id="notch2" class="notch" maxlength="1" value="Z">
             </div>
@@ -211,7 +182,7 @@
 
         <fieldset class="scrambler toggleable" data-scrambler-id="3">
           <legend>
-            <button type="button" class="drag-handle" aria-label="ドラッグして並び替え">
+            <button type="button" class="drag-handle" data-i18n-aria-label="dragReorder" aria-label="矢印キーまたはドラッグで並び替える">
               <span class="drag-handle-icon">&#x2630;</span>
             </button>
             <label class="toggle-label">
@@ -221,60 +192,60 @@
           </legend>
           <div class="scrambler-inputs toggle-content">
             <div class="preset-group">
-              <label for="preset3">プリセット</label>
+              <label for="preset3" data-i18n="preset">プリセット</label>
               <select id="preset3" class="preset-select" data-target="wiring3"></select>
             </div>
             <div class="wiring-group">
-              <label for="wiring3">配線 (26文字)</label>
+              <label for="wiring3" data-i18n="wiring26">配線（26文字）</label>
               <input type="text" id="wiring3" class="wiring" maxlength="26" placeholder="BDFHJLCPRTXVZNYEIWGAKMUSQO">
             </div>
             <div class="position-group">
-              <label for="position3">位置</label>
+              <label for="position3" data-i18n="position">位置</label>
               <input type="text" id="position3" class="position" maxlength="1" value="A">
             </div>
             <div class="notch-group">
               <label class="notch-toggle-label">
                 <input type="checkbox" id="notch3-enabled" class="notch-toggle" checked>
-                <span>ノッチ</span>
+                <span data-i18n="notch">ノッチ</span>
               </label>
               <input type="text" id="notch3" class="notch" maxlength="1" value="Z">
             </div>
           </div>
         </fieldset>
       </div>
-      <p class="helper-text">配線が空、またはOFFのスクランブラーは無効になります。2番目以降のスクランブラーは、前段がノッチ位置を超えると1回転します（ノッチOFF時は26回で1回転）。</p>
+      <p class="helper-text" data-i18n="scramblerHelper">空欄またはOFFのスクランブラーは使いません。先頭は毎文字進み、前段がノッチを越えたときだけ次段が進みます。ダブルステップはありません。</p>
 
       <fieldset class="toggleable">
         <legend>
           <label class="toggle-label">
             <input type="checkbox" id="reflector-enabled" checked>
-            <span>Reflector</span>
+            <span data-i18n="reflector">Reflector</span>
           </label>
         </legend>
         <div class="toggle-content reflector-inputs">
           <div class="preset-group">
-            <label for="preset-reflector">プリセット</label>
+            <label for="preset-reflector" data-i18n="preset">プリセット</label>
             <select id="preset-reflector" class="preset-select" data-target="reflector" data-type="reflector"></select>
           </div>
           <div class="wiring-group">
-            <label for="reflector">配線 (26文字)</label>
+            <label for="reflector" data-i18n="wiring26">配線（26文字）</label>
             <input type="text" id="reflector" maxlength="26" value="YRUHQSLDPXNGOKMIEBFZCWVJAT">
           </div>
-          <p class="helper-text">上級者向け設定</p>
+          <p class="helper-text" data-i18n="reflectorHelper">ONはリフレクター往復、OFFは直通の実験経路です。カスタム配線は自己逆かつ固定点なしに限ります。</p>
         </div>
       </fieldset>
 
       <fieldset class="mode-toggle">
-        <legend>Mode</legend>
+        <legend data-i18n="mode">モード</legend>
         <label>
           <input type="radio" name="mode" value="encrypt" checked>
-          暗号化 (Encrypt)
+          <span data-i18n="encrypt">暗号化（順方向）</span>
         </label>
         <label>
           <input type="radio" name="mode" value="decrypt">
-          復号 (Decrypt)
+          <span data-i18n="decrypt">復号（逆方向）</span>
         </label>
-        <p class="helper-text">復号モードでは逆方向に回転します</p>
+        <p class="helper-text" data-i18n="modeHelper">リフレクターONではどちらも同じ操作です。OFFのときだけ順方向／逆方向を切り替えます。回転方向はどちらも左です。</p>
       </fieldset>
     </section>
 
@@ -283,31 +254,32 @@
 
     <!-- 2. Input Section -->
     <section class="input-section">
-      <label for="input-text">入力テキスト</label>
-      <textarea id="input-text" placeholder="暗号化/復号するテキストを入力..."></textarea>
+      <label for="input-text" data-i18n="inputText">入力テキスト</label>
+      <textarea id="input-text" maxlength="20000" data-i18n-placeholder="inputPlaceholder" placeholder="暗号化または復号するテキストを入力…"></textarea>
+      <p class="helper-text" data-i18n="inputLimit">最大20,000文字。暗号処理の対象はA〜Zです。</p>
     </section>
 
     <!-- 3. Process Button -->
     <div class="action-buttons">
-      <button type="button" id="process-btn" class="btn-primary">処理実行</button>
-      <button type="button" id="share-btn" class="btn-secondary">設定URLをコピー</button>
-      <button type="button" id="reset-btn" class="btn-danger">リセット</button>
+      <button type="button" id="process-btn" class="btn-primary" data-i18n="process">処理実行</button>
+      <button type="button" id="share-btn" class="btn-secondary" data-i18n="copyShareUrl">設定URLをコピー</button>
+      <button type="button" id="reset-btn" class="btn-danger" data-i18n="reset">リセット</button>
     </div>
 
     <!-- 4. Results Section -->
     <section class="results-section">
       <div class="output-area">
         <div class="area-header">
-          <label for="output-text">出力テキスト</label>
-          <button type="button" class="copy-btn" data-target="output-text">コピー</button>
+          <label for="output-text" data-i18n="outputText">出力テキスト</label>
+          <button type="button" class="copy-btn" data-target="output-text" data-i18n="copy">コピー</button>
         </div>
-        <textarea id="output-text" readonly placeholder="結果がここに表示されます"></textarea>
+        <textarea id="output-text" readonly data-i18n-placeholder="outputPlaceholder" placeholder="結果がここに表示されます"></textarea>
       </div>
 
       <div class="log-area">
         <div class="area-header">
-          <label for="log-output">内部状態ログ</label>
-          <button type="button" class="copy-btn" data-target="log-output">コピー</button>
+          <label for="log-output" data-i18n="processingTrace">処理トレース</label>
+          <button type="button" class="copy-btn" data-target="log-output" data-i18n="copy">コピー</button>
         </div>
         <pre id="log-output"></pre>
       </div>
@@ -315,11 +287,11 @@
     </div>
 
     <!-- Tab: Analysis -->
-    <div id="tab-analysis" class="tab-panel">
+    <div id="tab-analysis" class="tab-panel" role="tabpanel" aria-labelledby="tab-analysis-button">
       <section class="analysis-section">
-        <h2 class="section-title">既知平文攻撃</h2>
-        <p class="section-description">
-          暗号文と既知の平文から、スクランブラーの初期位置を探索します。
+        <h2 class="section-title" data-i18n="attackTitle">既知平文による初期位置探索</h2>
+        <p class="section-description" data-i18n="attackDescription">
+          配線と一部の平文が既知であるとき、スクランブラーの初期位置を総当たりします。結果は入力条件に一致する候補であり、正解の証明ではありません。
         </p>
 
         <!-- Attack Settings -->
@@ -341,7 +313,7 @@
           <div class="attack-scramblers">
             <fieldset class="attack-fieldset toggleable" data-attack-scrambler-id="1">
               <legend>
-                <button type="button" class="drag-handle" aria-label="ドラッグして並び替え">
+                <button type="button" class="drag-handle" data-i18n-aria-label="dragReorder" aria-label="矢印キーまたはドラッグで並び替える">
                   <span class="drag-handle-icon">&#x2630;</span>
                 </button>
                 <label class="toggle-label">
@@ -351,11 +323,11 @@
               </legend>
               <div class="toggle-content scrambler-row">
                 <select id="attack-preset1" class="attack-preset-select" data-target="attack-wiring1"></select>
-                <input type="text" id="attack-wiring1" class="wiring" maxlength="26" placeholder="26文字の配線">
+                <input type="text" id="attack-wiring1" class="wiring" maxlength="26" data-i18n-placeholder="attackWiringPlaceholder" placeholder="26文字の配線">
                 <div class="attack-notch-group">
                   <label class="notch-toggle-label">
                     <input type="checkbox" id="attack-notch1-enabled" class="notch-toggle" checked>
-                    <span>ノッチ</span>
+                    <span data-i18n="notch">ノッチ</span>
                   </label>
                   <input type="text" id="attack-notch1" class="notch" maxlength="1" value="Z">
                 </div>
@@ -364,7 +336,7 @@
 
             <fieldset class="attack-fieldset toggleable" data-attack-scrambler-id="2">
               <legend>
-                <button type="button" class="drag-handle" aria-label="ドラッグして並び替え">
+                <button type="button" class="drag-handle" data-i18n-aria-label="dragReorder" aria-label="矢印キーまたはドラッグで並び替える">
                   <span class="drag-handle-icon">&#x2630;</span>
                 </button>
                 <label class="toggle-label">
@@ -374,11 +346,11 @@
               </legend>
               <div class="toggle-content scrambler-row">
                 <select id="attack-preset2" class="attack-preset-select" data-target="attack-wiring2"></select>
-                <input type="text" id="attack-wiring2" class="wiring" maxlength="26" placeholder="26文字の配線">
+                <input type="text" id="attack-wiring2" class="wiring" maxlength="26" data-i18n-placeholder="attackWiringPlaceholder" placeholder="26文字の配線">
                 <div class="attack-notch-group">
                   <label class="notch-toggle-label">
                     <input type="checkbox" id="attack-notch2-enabled" class="notch-toggle" checked>
-                    <span>ノッチ</span>
+                    <span data-i18n="notch">ノッチ</span>
                   </label>
                   <input type="text" id="attack-notch2" class="notch" maxlength="1" value="Z">
                 </div>
@@ -387,7 +359,7 @@
 
             <fieldset class="attack-fieldset toggleable" data-attack-scrambler-id="3">
               <legend>
-                <button type="button" class="drag-handle" aria-label="ドラッグして並び替え">
+                <button type="button" class="drag-handle" data-i18n-aria-label="dragReorder" aria-label="矢印キーまたはドラッグで並び替える">
                   <span class="drag-handle-icon">&#x2630;</span>
                 </button>
                 <label class="toggle-label">
@@ -397,11 +369,11 @@
               </legend>
               <div class="toggle-content scrambler-row">
                 <select id="attack-preset3" class="attack-preset-select" data-target="attack-wiring3"></select>
-                <input type="text" id="attack-wiring3" class="wiring" maxlength="26" placeholder="26文字の配線">
+                <input type="text" id="attack-wiring3" class="wiring" maxlength="26" data-i18n-placeholder="attackWiringPlaceholder" placeholder="26文字の配線">
                 <div class="attack-notch-group">
                   <label class="notch-toggle-label">
                     <input type="checkbox" id="attack-notch3-enabled" class="notch-toggle" checked>
-                    <span>ノッチ</span>
+                    <span data-i18n="notch">ノッチ</span>
                   </label>
                   <input type="text" id="attack-notch3" class="notch" maxlength="1" value="Z">
                 </div>
@@ -427,27 +399,27 @@
         <!-- Attack Inputs -->
         <div class="attack-inputs">
           <div class="input-group">
-            <label for="attack-ciphertext">暗号文</label>
-            <textarea id="attack-ciphertext" placeholder="探索対象の暗号文を入力..."></textarea>
+            <label for="attack-ciphertext" data-i18n="ciphertext">暗号文</label>
+            <textarea id="attack-ciphertext" maxlength="200" data-i18n-placeholder="ciphertextPlaceholder" placeholder="探索対象の暗号文を入力…"></textarea>
           </div>
 
           <div class="input-group">
-            <label>既知平文</label>
-            <p class="helper-text">暗号文の各文字に対応する平文がわかっている場合、下の入力欄に入力してください。空欄は不明を意味します。</p>
+            <label data-i18n="knownPlaintext">既知平文</label>
+            <p class="helper-text" data-i18n="knownPlaintextHelp">対応がわかっている文字だけ入力してください。空欄は不明を意味します。</p>
             <div id="plaintext-grid" class="plaintext-grid">
-              <p class="grid-placeholder">暗号文を入力すると、ここに入力欄が表示されます</p>
+              <p class="grid-placeholder" data-i18n="gridPlaceholder">暗号文を入力すると、ここに入力欄が表示されます。</p>
             </div>
           </div>
         </div>
 
         <!-- Search Info -->
         <div class="search-info" id="attack-search-info">
-          <span class="search-space">探索空間: <strong id="attack-combinations">-</strong></span>
+          <span class="search-space"><span data-i18n="searchSpace">探索空間:</span> <strong id="attack-combinations">-</strong></span>
         </div>
 
         <!-- Action -->
         <div class="attack-actions">
-          <button type="button" id="attack-run-btn" class="btn-primary">探索実行</button>
+          <button type="button" id="attack-run-btn" class="btn-primary" data-i18n="runSearch">探索実行</button>
         </div>
 
         <!-- Error Messages -->
@@ -456,17 +428,17 @@
         <!-- Progress Indicator -->
         <div id="attack-progress" class="progress-indicator" hidden>
           <span class="spinner"></span>
-          <span>探索中...</span>
+          <span data-i18n="searching">探索中…</span>
         </div>
 
         <!-- Results -->
         <div class="attack-results-section">
           <div class="results-header">
-            <h3>探索結果</h3>
+            <h3 data-i18n="searchResults">探索結果</h3>
             <span id="attack-result-count">-</span>
           </div>
           <div id="attack-results" class="attack-results">
-            <p class="placeholder-message">探索を実行すると結果がここに表示されます</p>
+            <p class="placeholder-message" data-i18n="searchPlaceholder">探索を実行すると結果がここに表示されます。</p>
           </div>
         </div>
       </section>
@@ -476,22 +448,24 @@
     <div id="apply-confirm-modal" class="modal" hidden>
       <div class="modal-overlay"></div>
       <div class="modal-content modal-confirm">
-        <h2>設定を適用</h2>
+        <h2 data-i18n="applySettingsTitle">設定を適用</h2>
         <div class="modal-body">
-          <p id="apply-confirm-message">スクランブラーの初期位置を設定しますか？</p>
+          <p id="apply-confirm-message" data-i18n="applySettingsQuestion">スクランブラーの初期位置を設定しますか？</p>
         </div>
         <div class="modal-actions">
-          <button type="button" id="apply-confirm-cancel" class="btn-secondary">キャンセル</button>
-          <button type="button" id="apply-confirm-ok" class="btn-primary">適用</button>
+          <button type="button" id="apply-confirm-cancel" class="btn-secondary" data-i18n="cancel">キャンセル</button>
+          <button type="button" id="apply-confirm-ok" class="btn-primary" data-i18n="apply">適用</button>
         </div>
       </div>
     </div>
 
     <footer class="footer">
-      🔗 GitHubリポジトリはこちら（ <a href="https://github.com/ipusiron/cypher-enigma-simulator" target="_blank" rel="noopener noreferrer">ipusiron/cypher-enigma-simulator</a> ）
+      🔗 <span data-i18n="footer">GitHubリポジトリー</span>（<a href="https://github.com/ipusiron/cypher-enigma-simulator" target="_blank" rel="noopener noreferrer">ipusiron/cypher-enigma-simulator</a>）
     </footer>
   </main>
 
+  <script src="logic.js"></script>
+  <script src="messages.js"></script>
   <script src="main.js"></script>
 </body>
 </html>

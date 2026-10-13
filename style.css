@@ -17,6 +17,16 @@ body {
   color: #222;
 }
 
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+a:focus-visible {
+  outline: 3px solid #1f6fc1;
+  outline-offset: 2px;
+}
+
 /* =================================
    2. Layout - Container
    ================================= */
@@ -34,7 +44,7 @@ body {
    ================================= */
 header {
   position: relative;
-  padding: 1.5rem 1.5rem 1.25rem;
+  padding: 0.75rem 1rem 1.25rem;
   margin: -1rem -1rem 0;
   text-align: center;
   border-bottom: 2px solid #ddd;
@@ -45,6 +55,7 @@ header h1 {
   margin: 0 0 0.25rem;
   color: #1a1a2e;
   letter-spacing: 0.05em;
+  overflow-wrap: anywhere;
 }
 
 header .subtitle {
@@ -53,14 +64,42 @@ header .subtitle {
   font-size: 0.9rem;
 }
 
+header .scope-note {
+  max-width: 52rem;
+  margin: 0.5rem auto 0;
+  color: #555;
+  font-size: 0.8rem;
+}
+
+.header-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.language-toggle {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid #61738b;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #1a1a2e;
+  font: inherit;
+  cursor: pointer;
+}
+
+.language-toggle:hover,
+.language-toggle:focus-visible {
+  border-color: #2d6cb5;
+  color: #2d6cb5;
+}
+
 /* Help Button */
 .help-btn {
-  position: absolute;
-  top: 50%;
-  right: 1rem;
-  transform: translateY(-50%);
-  width: 2rem;
-  height: 2rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border: 2px solid #999;
   border-radius: 50%;
   background: transparent;
@@ -82,13 +121,16 @@ header .subtitle {
    ================================= */
 .tab-nav {
   display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   border-bottom: 2px solid #ddd;
   margin-bottom: 1.5rem;
 }
 
 .tab-btn {
-  padding: 0.75rem 1.5rem;
+  min-height: 2.75rem;
+  padding: 0.75rem 1.25rem;
   border: none;
   background: transparent;
   font-size: 1rem;
@@ -301,6 +343,7 @@ label {
    4. Form Elements
    ================================= */
 fieldset {
+  min-width: 0;
   border: 1px solid #ddd;
   border-radius: 0.5rem;
   padding: 1rem;
@@ -316,6 +359,7 @@ legend {
 
 input[type="text"],
 textarea {
+  min-width: 0;
   width: 100%;
   padding: 0.5rem;
   border: 1px solid #ccc;
@@ -380,7 +424,7 @@ textarea[readonly] {
   background-color: #fff;
   border: 1px solid #ddd;
   border-radius: 0.5rem;
-  padding: 1.5rem;
+  padding: 1rem;
 }
 
 .section-title {
@@ -401,16 +445,20 @@ textarea[readonly] {
 
 .scrambler-inputs {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
-  align-items: flex-end;
+  align-items: stretch;
 }
 
+.preset-group,
 .wiring-group {
+  min-width: 0;
+  width: 100%;
   flex: 1;
 }
 
 .position-group {
-  width: 3.5rem;
+  width: 100%;
 }
 
 .position-group input {
@@ -419,8 +467,8 @@ textarea[readonly] {
 }
 
 .notch-group {
-  width: auto;
-  min-width: 4.5rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .notch-group input.notch {
@@ -604,7 +652,12 @@ textarea[readonly] {
 }
 
 .action-buttons .btn-danger {
-  margin-left: 2rem;
+  margin-left: 0;
+}
+
+.action-buttons > button {
+  width: 100%;
+  min-height: 2.75rem;
 }
 
 .btn-primary {
@@ -710,6 +763,8 @@ textarea[readonly] {
 }
 
 .copy-btn {
+  min-width: 2.75rem;
+  min-height: 2.5rem;
   padding: 0.25rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 500;
@@ -762,6 +817,7 @@ textarea[readonly] {
   color: #666;
   font-size: 0.85rem;
   border-top: 2px solid #ddd;
+  overflow-wrap: anywhere;
 }
 
 .footer a {
@@ -785,17 +841,21 @@ textarea[readonly] {
 
   .scramblers-container {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
   }
 
-  .scrambler-inputs {
-    flex-direction: column;
-    align-items: stretch;
+  .settings,
+  .analysis-section {
+    padding: 1.5rem;
   }
 
-  .position-group {
-    width: 100%;
+  .action-buttons > button {
+    width: auto;
+  }
+
+  .action-buttons .btn-danger {
+    margin-left: 1rem;
   }
 }
 
@@ -810,6 +870,10 @@ textarea[readonly] {
   header {
     margin: -2rem -2rem 0;
     padding: 2rem 2rem 1.5rem;
+  }
+
+  .scramblers-container {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   header h1 {
@@ -1116,6 +1180,7 @@ input.grid-plain-input:focus {
 }
 
 .btn-apply-result {
+  min-height: 2.75rem;
   margin-left: auto;
   padding: 0.25rem 0.75rem;
   font-size: 0.75rem;
@@ -1225,7 +1290,7 @@ input.grid-plain-input:focus {
 @media (min-width: 600px) {
   .attack-scramblers {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
   }
 
@@ -1266,6 +1331,10 @@ input.grid-plain-input:focus {
   .result-header {
     flex-wrap: nowrap;
   }
+
+  .attack-scramblers {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 /* =================================
@@ -1277,8 +1346,8 @@ input.grid-plain-input:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2.75rem;
+  height: 2.75rem;
   padding: 0;
   margin-right: 0.5rem;
   background: transparent;
@@ -1360,8 +1429,8 @@ input.grid-plain-input:focus {
 /* Touch device adjustments */
 @media (hover: none) and (pointer: coarse) {
   .drag-handle {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.75rem;
+    height: 2.75rem;
     font-size: 1.1rem;
   }
 

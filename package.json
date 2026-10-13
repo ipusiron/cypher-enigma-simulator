@@ -1,0 +1,10 @@
+{
+  "name": "cypher-enigma-simulator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A dependency-free learning tool for Cypher-style Enigma puzzles.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}
