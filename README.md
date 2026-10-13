@@ -8,8 +8,8 @@ title: "Cypher Enigma Simulator"
 subtitle_ja: "暗号解読ゲーム「Cypher」用の簡易エニグマシミュレーター"
 subtitle_en: "Simplified Enigma simulator for the Cypher puzzle game"
 
-description_ja: "Cypher系パズルの簡略エニグマを再現し、信号経路と初期位置探索を検証する日英対応の学習ツール"
-description_en: "A bilingual learning tool for reproducing Cypher-style Enigma puzzles and inspecting signal paths and initial-position searches"
+description_ja: "Cypher系パズルの簡略エニグマを再現し、信号経路・初期位置探索・Enigma I教育サブセットとの差を検証する日英対応の学習ツール"
+description_en: "A bilingual tool for studying Cypher-style Enigma puzzles, initial-position searches, and differences from an Enigma I educational subset"
 
 category_ja:
   - 古典暗号
@@ -49,7 +49,7 @@ hub: true
 
 Cypherで使用されるエニグマ風暗号機を再現し、文字ごとの信号経路と初期位置探索を確認するための学習ツールです。すべての処理はブラウザー内で完結します。
 
-**注意**: Cypherのパズル仕様を優先した簡略モデルです。リング設定、ダブルステップ、軍用機の運用手順を含む歴史的な実機エニグマの完全再現ではありません。
+**注意**: 暗号化・復号タブはCypherのパズル仕様を優先した簡略モデルです。モデル比較タブではリング設定とダブルステップを含むEnigma I教育サブセットとの差を確認できますが、軍用機の運用手順を含む完全な実機再現ではありません。
 
 ---
 
@@ -74,6 +74,10 @@ Cypherで使用されるエニグマ風暗号機を再現し、文字ごとの�
 > ![既知平文による初期位置探索](assets/screenshot3.png)
 >
 > *進捗と既知文字ごとの候補減少を確認できる初期位置探索*
+
+> ![簡略モデルとEnigma I教育サブセットの比較](assets/screenshot4.png)
+>
+> *既知ベクトル、リング設定、ダブルステップを打鍵単位で比較*
 
 ---
 
@@ -113,6 +117,15 @@ Cypherで使用されるエニグマ風暗号機を再現し、文字ごとの�
 - 候補の処理トレースは詳細を開いたときだけ生成
 - 候補を暗号化・復号タブに適用する機能
 
+### モデル比較
+
+- Cypher向け簡略モデルとEnigma I教育サブセットを同じ条件で比較
+- ローターI〜V、反射板B/C、開始位置、リング設定を選択
+- 既知ベクトル`AAAAA → BDZGO`をワンクリックで再現
+- `ADU → ADV → AEW → BFX`の位置遷移で中ローターのダブルステップを表示
+- 打鍵前後の位置、回転理由、両モデルの出力を表で比較
+- 選択したリング設定とAAA基準の出力差を件数表示
+
 ---
 
 ## 📖 使い方
@@ -148,6 +161,16 @@ Cypherで使用されるエニグマ風暗号機を再現し、文字ごとの�
 6. 絞り込み表で、既知文字を1つ加えるたびに候補が何件除外されたかを比較
 7. 候補の詳細を開いて処理トレースを生成する
 8. 候補が見つかったら「設定に適用」ボタンで暗号化・復号タブに反映
+
+### 5. モデル比較
+
+1. 「モデル比較」タブを選択
+2. 「既知ベクトル（AAAAA）」で、ローターI-II-III、開始位置AAA、リングAAA、反射板Bの結果`BDZGO`を確認
+3. 「ダブルステップ例（ADU）」で、教育サブセットの位置が`ADV → AEW → BFX`と変化することを確認
+4. ローター、開始位置、リング、反射板、40文字以内の入力を変更し、「比較する」を選択
+5. 出力差、AAAリング基準との差、打鍵ごとの位置と回転理由を確認
+
+比較用モデルにはプラグボードがなく、日鍵・通信鍵などの運用手順も再現しません。歴史的な機械全体ではなく、簡略モデルとの差を観察するための限定された教材です。
 
 ---
 
@@ -265,8 +288,8 @@ Cypherで使用されるエニグマ風暗号機を再現し、文字ごとの�
 
 以下は意図的に省略しています。
 
-- リング設定
-- ダブルステップ（簡略化のため）
+- 暗号化・復号タブでのリング設定とダブルステップ
+- モデル比較タブでのプラグボード
 - 軍用エニグマ仕様の完全再現
 - リング設定を含む史料上の鍵手順や運用の再現
 
@@ -291,6 +314,19 @@ Cypherで使用されるエニグマ風暗号機を再現し、文字ごとの�
 - [MECHANISED CRYPTOGRAPHY PUZZLE 03【Cypher編】](https://akademeia.info/?p=36372)
 
 このほか、置換・逆写像・オドメーター式回転を学ぶ教材、カスタム配線の妥当性検査、処理トレースを使った実装比較にも利用できます。
+
+---
+
+## 📚 モデル比較の根拠資料
+
+比較タブのローター配線・ノッチ・リング設定・ダブルステップは、次の史料と研究資料を基にしています。
+
+- [H.Dv.g. 14: Schlüsselanleitung zur Schlüsselmaschine Enigma (1940)](https://enigma.3d.pl/files/enigma-manual1940-german.pdf)
+- [NSA: Introduction to Cryptology, Part VI](https://www.nsa.gov/portals/75/documents/news-features/declassified-documents/friedman-documents/lectures-speeches/FOLDER_179/41758629079776.pdf)
+- [NSA Cryptographic Mathematics: Enigma Wiring](https://www.cryptomuseum.com/crypto/enigma/files/enigma_wiring_catalog.pdf)
+- [David H. Hamer: Enigma: Actions Involved in the Double Stepping of the Middle Rotor](https://www.cryptomuseum.com/people/hamer/files/double_stepping.pdf)
+
+これらを参照して主要な差を再現していますが、機種差、プラグボード、鍵配布、メッセージ手順を網羅する実機エミュレーターではありません。
 
 ---
 
@@ -319,8 +355,9 @@ cypher-enigma-simulator/
 ├── style.css           # スタイルシート
 ├── logic.js            # DOMに依存しない暗号コア
 ├── attack-core.js      # 分割探索・候補集計・絞り込み計算
+├── comparison-core.js  # Enigma I教育サブセットとモデル比較
 ├── messages.js         # 日本語・英語の表示文言
-├── main.js             # UI・保存・初期位置探索
+├── main.js             # UI・保存・初期位置探索・モデル比較
 ├── README.md           # 本ドキュメント
 ├── README.en.md        # 英語版ドキュメント
 ├── LICENSE             # MITライセンス
@@ -331,9 +368,10 @@ cypher-enigma-simulator/
 │   └── test.yml        # push・pull_request時の自動テスト
 ├── test/
 │   ├── attack-core.test.js # 分割探索・候補上限・絞り込みのテスト
+│   ├── comparison-core.test.js # 既知ベクトル・リング・ダブルステップのテスト
 │   ├── core.test.js    # 既知ベクトル・往復性・検証のテスト
 │   └── ui-contract.test.js # 日英UI・CSP・モバイル契約のテスト
-├── assets/             # スクリーンショット
+├── assets/             # screenshot1.png〜screenshot4.png
 └── docs/
     ├── UI_SPEC.md      # 画面仕様書
     └── DETAILED_SPEC.md # 詳細仕様書

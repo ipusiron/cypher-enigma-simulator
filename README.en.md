@@ -8,8 +8,8 @@ title: "Cypher Enigma Simulator"
 subtitle_ja: "暗号解読ゲーム「Cypher」用の簡易エニグマシミュレーター"
 subtitle_en: "Simplified Enigma simulator for the Cypher puzzle game"
 
-description_ja: "Cypher系パズルの簡略エニグマを再現し、信号経路と初期位置探索を検証する日英対応の学習ツール"
-description_en: "A bilingual learning tool for reproducing Cypher-style Enigma puzzles and inspecting signal paths and initial-position searches"
+description_ja: "Cypher系パズルの簡略エニグマを再現し、信号経路・初期位置探索・Enigma I教育サブセットとの差を検証する日英対応の学習ツール"
+description_en: "A bilingual tool for studying Cypher-style Enigma puzzles, initial-position searches, and differences from an Enigma I educational subset"
 
 category_ja:
   - 古典暗号
@@ -49,7 +49,7 @@ hub: true
 
 This browser-only learning tool reproduces a Cypher-style Enigma machine and lets you inspect each letter's signal path and search for initial positions.
 
-**Important:** The model follows the Cypher puzzle rules. It is not a faithful historical Enigma simulation: ring settings, double-stepping, and military operating procedures are outside its scope.
+**Important:** The Encrypt / decrypt tab follows the simplified Cypher puzzle model. The Model comparison tab demonstrates the differences from an Enigma I educational subset with ring settings and double-stepping, but it is not a complete machine or military-procedure simulation.
 
 [日本語版README](README.md)
 
@@ -76,6 +76,10 @@ The tool runs directly in a browser.
 > ![Known-plaintext initial-position search](assets/screenshot3.png)
 >
 > *Initial-position search with progress and per-clue candidate reduction*
+
+> ![Simplified model and Enigma I educational subset comparison](assets/screenshot4.png)
+>
+> *Keypress-by-keypress comparison of a known vector, ring settings, and double-stepping*
 
 ---
 
@@ -114,6 +118,15 @@ The tool runs directly in a browser.
 The candidates satisfy the supplied conditions. They do not prove the correct answer or recover unknown wiring or a complete historical key.
 If a search is cancelled, the displayed candidates and narrowing counts cover only the combinations already checked. Candidate order and counts are not probabilities, confidence scores, or accuracy measurements.
 
+### Model comparison
+
+- Compares the Cypher-oriented simplified model with an Enigma I educational subset under the same settings
+- Offers rotors I-V, reflectors B/C, starting positions, and ring settings
+- Reproduces the known vector `AAAAA → BDZGO` with one action
+- Shows the middle-rotor double-step in the position sequence `ADU → ADV → AEW → BFX`
+- Compares positions before and after each keypress, the stepping reason, and both output letters
+- Counts the output differences from the AAA-ring baseline
+
 ---
 
 ## 📖 Usage
@@ -144,6 +157,16 @@ Only A-Z letters are transformed. Spaces, digits, punctuation, and other charact
 5. Select **Run search** and monitor checked combinations, total combinations, and matches. Use **Cancel search** if needed.
 6. Compare the narrowing table to see how many candidates each additional known letter eliminates.
 7. Open a candidate only when you need its detailed processing trace, or apply it to the main tab after confirmation.
+
+### 4. Compare the models
+
+1. Open **Model comparison**.
+2. Select **Known vector (AAAAA)** to verify `BDZGO` with rotors I-II-III, starting positions AAA, rings AAA, and reflector B.
+3. Select **Double-step example (ADU)** and confirm that the educational subset moves through `ADV → AEW → BFX`.
+4. Change the rotors, starting positions, rings, reflector, or input of up to 40 letters, then select **Compare**.
+5. Inspect the output differences, the AAA-ring baseline count, and the keypress timeline.
+
+The comparison model omits the plugboard and operational procedures such as daily and message keys. It is a deliberately bounded teaching model for observing differences, not a complete historical machine.
 
 ---
 
@@ -223,10 +246,23 @@ The tool also works as a compact teaching aid for permutations, inverse mappings
 
 ---
 
+## 📚 Model-comparison sources
+
+The rotor wiring, notches, ring settings, and double-step behavior in the comparison tab are based on these period and research materials:
+
+- [H.Dv.g. 14: Schlüsselanleitung zur Schlüsselmaschine Enigma (1940)](https://enigma.3d.pl/files/enigma-manual1940-german.pdf)
+- [NSA: Introduction to Cryptology, Part VI](https://www.nsa.gov/portals/75/documents/news-features/declassified-documents/friedman-documents/lectures-speeches/FOLDER_179/41758629079776.pdf)
+- [NSA Cryptographic Mathematics: Enigma Wiring](https://www.cryptomuseum.com/crypto/enigma/files/enigma_wiring_catalog.pdf)
+- [David H. Hamer: Enigma: Actions Involved in the Double Stepping of the Middle Rotor](https://www.cryptomuseum.com/people/hamer/files/double_stepping.pdf)
+
+The subset reproduces the major differences used by this lesson; it does not cover machine variants, a plugboard, key distribution, or message procedures.
+
+---
+
 ## ⚠️ Limits
 
-- No ring settings
-- No historical double-step
+- No ring settings or double-step in the Encrypt / decrypt tab
+- No plugboard in the Model comparison tab
 - No faithful military Enigma operating procedure or machine variant
 - No claim that a known-plaintext candidate is the unique or historically correct key
 - No security use: this is an educational classical-cipher simulator
@@ -256,8 +292,9 @@ cypher-enigma-simulator/
 ├── style.css               # Responsive styles
 ├── logic.js                # DOM-independent cipher core
 ├── attack-core.js          # Batched search and candidate-narrowing calculations
+├── comparison-core.js      # Enigma I educational subset and model comparison
 ├── messages.js             # Japanese and English UI messages
-├── main.js                 # UI, persistence, and position search
+├── main.js                 # UI, persistence, position search, and model comparison
 ├── README.md               # Japanese documentation
 ├── README.en.md            # This document
 ├── LICENSE                 # MIT License
@@ -266,9 +303,10 @@ cypher-enigma-simulator/
 │   └── test.yml            # Test workflow for push and pull requests
 ├── test/
 │   ├── attack-core.test.js # Batching, retention limit, narrowing counts
+│   ├── comparison-core.test.js # Known vectors, rings, and double-stepping
 │   ├── core.test.js        # Vectors, round trips, stepping, validation
 │   └── ui-contract.test.js # Bilingual UI, CSP, responsive contracts
-├── assets/                 # Screenshots
+├── assets/                 # screenshot1.png through screenshot4.png
 └── docs/
     ├── UI_SPEC.md          # UI specification
     └── DETAILED_SPEC.md    # Detailed behaviour

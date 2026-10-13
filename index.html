@@ -80,7 +80,7 @@
 
           <h3 data-i18n="cautionHeading">限界</h3>
           <ul>
-            <li data-i18n="caution1">リング設定、ダブルステップ、軍用機の運用手順は扱いません。</li>
+            <li data-i18n="caution1">暗号化・復号タブはリング設定とダブルステップを扱いません。モデル比較タブでは教育用サブセットとして確認できますが、軍用機の運用手順は再現しません。</li>
             <li data-i18n="caution2">既知平文攻撃は初期位置の総当たり教材であり、未知の配線や鍵全体を解読するものではありません。</li>
             <li data-i18n="caution3">A〜Z以外は変換せず、そのまま出力します。</li>
           </ul>
@@ -92,6 +92,7 @@
     <nav class="tab-nav" aria-label="Tabs" role="tablist">
       <button type="button" class="tab-btn active" id="tab-cipher-button" data-tab="cipher" data-i18n="tabCipher" role="tab" aria-selected="true" aria-controls="tab-cipher">暗号化・復号</button>
       <button type="button" class="tab-btn" id="tab-analysis-button" data-tab="analysis" data-i18n="tabAnalysis" role="tab" aria-selected="false" aria-controls="tab-analysis" tabindex="-1">解析支援</button>
+      <button type="button" class="tab-btn" id="tab-comparison-button" data-tab="comparison" data-i18n="tabComparison" role="tab" aria-selected="false" aria-controls="tab-comparison" tabindex="-1">モデル比較</button>
     </nav>
 
     <!-- Tab: Cipher -->
@@ -470,6 +471,128 @@
       </section>
     </div>
 
+    <!-- Tab: Model Comparison -->
+    <div id="tab-comparison" class="tab-panel" role="tabpanel" aria-labelledby="tab-comparison-button">
+      <section class="comparison-section">
+        <h2 class="section-title" data-i18n="comparisonTitle">簡略モデルとEnigma I教育サブセットの比較</h2>
+        <p class="section-description" data-i18n="comparisonDescription">
+          同じ入力・ローター・開始位置を使い、Cypher向け簡略モデルと、リング設定とダブルステップを含む教育用モデルの違いを1打鍵ずつ確認します。
+        </p>
+        <p class="comparison-scope" role="note" data-i18n="comparisonScope">
+          比較用モデルはローターI〜V、反射板B/C、3枚の異なるローターに限定しています。プラグボードと実運用の鍵手順は扱いません。
+        </p>
+
+        <div class="comparison-controls">
+          <div class="input-group">
+            <label for="comparison-input" data-i18n="comparisonInput">比較する入力（A〜Z）</label>
+            <textarea id="comparison-input" maxlength="40" spellcheck="false">AAAAA</textarea>
+            <p class="helper-text" data-i18n="comparisonInputHelp">A〜Zだけを使用できます。最大40文字です。</p>
+          </div>
+
+          <fieldset class="comparison-fieldset">
+            <legend data-i18n="comparisonRotorOrder">ローター順序（左・中・右）</legend>
+            <div class="comparison-rotor-grid">
+              <label><span data-i18n="comparisonLeft">左</span><select id="comparison-rotor-left"><option>I</option><option>II</option><option>III</option><option>IV</option><option>V</option></select></label>
+              <label><span data-i18n="comparisonMiddle">中</span><select id="comparison-rotor-middle"><option>I</option><option selected>II</option><option>III</option><option>IV</option><option>V</option></select></label>
+              <label><span data-i18n="comparisonRight">右</span><select id="comparison-rotor-right"><option>I</option><option>II</option><option selected>III</option><option>IV</option><option>V</option></select></label>
+            </div>
+          </fieldset>
+
+          <fieldset class="comparison-fieldset">
+            <legend data-i18n="comparisonStartAndRing">開始位置とリング設定</legend>
+            <div class="comparison-setting-grid">
+              <div class="comparison-setting-card">
+                <strong data-i18n="comparisonLeft">左</strong>
+                <label><span data-i18n="comparisonWindow">開始位置</span><select id="comparison-position-left"></select></label>
+                <label><span data-i18n="comparisonRing">リング</span><select id="comparison-ring-left"></select></label>
+              </div>
+              <div class="comparison-setting-card">
+                <strong data-i18n="comparisonMiddle">中</strong>
+                <label><span data-i18n="comparisonWindow">開始位置</span><select id="comparison-position-middle"></select></label>
+                <label><span data-i18n="comparisonRing">リング</span><select id="comparison-ring-middle"></select></label>
+              </div>
+              <div class="comparison-setting-card">
+                <strong data-i18n="comparisonRight">右</strong>
+                <label><span data-i18n="comparisonWindow">開始位置</span><select id="comparison-position-right"></select></label>
+                <label><span data-i18n="comparisonRing">リング</span><select id="comparison-ring-right"></select></label>
+              </div>
+            </div>
+          </fieldset>
+
+          <label class="comparison-reflector" for="comparison-reflector">
+            <span data-i18n="comparisonReflector">反射板</span>
+            <select id="comparison-reflector"><option>B</option><option>C</option></select>
+          </label>
+
+          <div class="comparison-actions">
+            <button type="button" id="comparison-known-vector-btn" class="btn-secondary" data-i18n="comparisonKnownVector">既知ベクトル（AAAAA）</button>
+            <button type="button" id="comparison-double-step-btn" class="btn-secondary" data-i18n="comparisonDoubleStepSample">ダブルステップ例（ADU）</button>
+            <button type="button" id="comparison-run-btn" class="btn-primary" data-i18n="comparisonRun">比較する</button>
+          </div>
+          <div id="comparison-error-messages" class="error-messages" role="alert" hidden></div>
+        </div>
+
+        <section id="comparison-results" class="comparison-results" aria-labelledby="comparison-results-title">
+          <h3 id="comparison-results-title" data-i18n="comparisonResults">比較結果</h3>
+          <div class="comparison-output-grid">
+            <div class="comparison-output-card">
+              <h4 data-i18n="comparisonSimplifiedModel">Cypher向け簡略モデル</h4>
+              <code id="comparison-simplified-output">-</code>
+            </div>
+            <div class="comparison-output-card">
+              <h4 data-i18n="comparisonHistoricalModel">Enigma I教育サブセット</h4>
+              <code id="comparison-historical-output">-</code>
+            </div>
+          </div>
+          <p id="comparison-difference-summary" class="comparison-summary">-</p>
+          <p id="comparison-ring-summary" class="comparison-summary">-</p>
+
+          <h3 data-i18n="comparisonTimeline">打鍵ごとの比較</h3>
+          <div class="table-scroll comparison-table-scroll" tabindex="0" data-i18n-aria-label="comparisonTableAria" aria-label="モデル比較表。横方向にスクロールできます">
+            <table class="comparison-table">
+              <thead><tr>
+                <th scope="col" data-i18n="comparisonStep">打鍵</th>
+                <th scope="col" data-i18n="comparisonInputChar">入力</th>
+                <th scope="col" data-i18n="comparisonSimplifiedPosition">簡略位置（後）</th>
+                <th scope="col" data-i18n="comparisonHistoricalBefore">教育モデル位置（前）</th>
+                <th scope="col" data-i18n="comparisonHistoricalAfter">教育モデル位置（後）</th>
+                <th scope="col" data-i18n="comparisonStepReason">回転の根拠</th>
+                <th scope="col" data-i18n="comparisonSimplifiedOutput">簡略出力</th>
+                <th scope="col" data-i18n="comparisonHistoricalOutput">教育モデル出力</th>
+              </tr></thead>
+              <tbody id="comparison-timeline-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="comparison-models" aria-labelledby="comparison-models-title">
+          <h3 id="comparison-models-title" data-i18n="comparisonMatrixTitle">モデルの境界</h3>
+          <div class="table-scroll" tabindex="0" data-i18n-aria-label="comparisonMatrixAria" aria-label="モデル差分表。横方向にスクロールできます">
+            <table class="comparison-matrix">
+              <thead><tr><th scope="col" data-i18n="comparisonFeature">項目</th><th scope="col" data-i18n="comparisonSimplified">簡略モデル</th><th scope="col" data-i18n="comparisonHistorical">教育サブセット</th></tr></thead>
+              <tbody>
+                <tr><th scope="row" data-i18n="comparisonFeatureStepping">回転</th><td data-i18n="comparisonSimplifiedStepping">前段のノッチ通過による繰り上がり</td><td data-i18n="comparisonHistoricalStepping">打鍵前のノッチ判定</td></tr>
+                <tr><th scope="row" data-i18n="comparisonFeatureRing">リング設定</th><td data-i18n="comparisonSimplifiedRing">なし</td><td data-i18n="comparisonHistoricalRing">配線オフセットに反映</td></tr>
+                <tr><th scope="row" data-i18n="comparisonFeatureDoubleStep">ダブルステップ</th><td data-i18n="comparisonSimplifiedDoubleStep">なし</td><td data-i18n="comparisonHistoricalDoubleStep">中ローターの連続回転を表示</td></tr>
+                <tr><th scope="row" data-i18n="comparisonFeaturePurpose">目的</th><td data-i18n="comparisonSimplifiedPurpose">Cypherのパズル仕様を学ぶ</td><td data-i18n="comparisonHistoricalPurpose">主要な差を限定条件で学ぶ</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <details class="comparison-evidence">
+          <summary data-i18n="comparisonEvidenceTitle">根拠資料と対象範囲</summary>
+          <p data-i18n="comparisonEvidenceBody">配線・ノッチ・リング設定・ダブルステップは、当時の鍵設定資料、NSAの教材・配線表、暗号史研究を基にした教育用実装です。完全な実機再現ではありません。</p>
+          <ul>
+            <li><a href="https://enigma.3d.pl/files/enigma-manual1940-german.pdf" target="_blank" rel="noopener noreferrer">H.Dv.g. 14 (1940)</a></li>
+            <li><a href="https://www.nsa.gov/portals/75/documents/news-features/declassified-documents/friedman-documents/lectures-speeches/FOLDER_179/41758629079776.pdf" target="_blank" rel="noopener noreferrer">NSA: Introduction to Cryptology VI</a></li>
+            <li><a href="https://www.cryptomuseum.com/crypto/enigma/files/enigma_wiring_catalog.pdf" target="_blank" rel="noopener noreferrer">NSA Cryptographic Mathematics: Enigma wiring</a></li>
+            <li><a href="https://www.cryptomuseum.com/people/hamer/files/double_stepping.pdf" target="_blank" rel="noopener noreferrer">David H. Hamer: Enigma double stepping</a></li>
+          </ul>
+        </details>
+      </section>
+    </div>
+
     <!-- Apply Confirm Modal -->
     <div id="apply-confirm-modal" class="modal" hidden>
       <div class="modal-overlay"></div>
@@ -492,6 +615,7 @@
 
   <script src="logic.js"></script>
   <script src="attack-core.js"></script>
+  <script src="comparison-core.js"></script>
   <script src="messages.js"></script>
   <script src="main.js"></script>
 </body>
