@@ -5,8 +5,9 @@
 
 const Core = globalThis.CypherEnigmaCore;
 const Attack = globalThis.CypherEnigmaAttack;
+const Comparison = globalThis.CypherEnigmaComparison;
 const Messages = globalThis.CypherEnigmaMessages;
-if (!Core || !Attack || !Messages) {
+if (!Core || !Attack || !Comparison || !Messages) {
   throw new Error('Application dependencies are unavailable.');
 }
 
@@ -14,6 +15,7 @@ const { ALPHABET, PRESET_WIRINGS } = Core;
 const LANGUAGE_STORAGE_KEY = 'cypher-enigma-language';
 let currentLanguage = 'ja';
 let lastAttackResults = null;
+let lastComparisonResult = null;
 let activeAttackSearch = null;
 let debouncedSaveSettings = null;
 
@@ -74,6 +76,7 @@ function setLanguage(language, options = {}) {
     });
   }
   if (activeAttackSearch) updateAttackProgress(Attack.getSearchSummary(activeAttackSearch.state));
+  if (lastComparisonResult) renderComparisonResult(lastComparisonResult, false);
   if (!document.getElementById('attack-ciphertext')?.value) generatePlaintextGrid('');
   if (pendingApplyPositions) {
     document.getElementById('apply-confirm-message').textContent = t('applyPositionsQuestion', { positions: pendingApplyPositions });
@@ -2123,6 +2126,141 @@ function setupRealtimeProcessing() {
   inputText.addEventListener('input', debouncedProcess);
 }
 
+// =================================
+// Model Comparison Module
+// =================================
+
+function populateComparisonLetters() {
+  [
+    'comparison-position-left', 'comparison-position-middle', 'comparison-position-right',
+    'comparison-ring-left', 'comparison-ring-middle', 'comparison-ring-right'
+  ].forEach((id) => {
+    const select = document.getElementById(id);
+    if (!select || select.options.length > 0) return;
+    ALPHABET.split('').forEach((letter) => {
+      const option = document.createElement('option');
+      option.value = letter;
+      option.textContent = letter;
+      select.appendChild(option);
+    });
+  });
+}
+
+function setComparisonControl(id, value) {
+  const control = document.getElementById(id);
+  if (control) control.value = value;
+}
+
+function getComparisonSettingsFromUI() {
+  return {
+    rotorOrder: ['left', 'middle', 'right'].map((role) => (
+      document.getElementById(`comparison-rotor-${role}`).value
+    )),
+    positions: ['left', 'middle', 'right'].map((role) => (
+      document.getElementById(`comparison-position-${role}`).value
+    )),
+    rings: ['left', 'middle', 'right'].map((role) => (
+      document.getElementById(`comparison-ring-${role}`).value
+    )),
+    reflector: document.getElementById('comparison-reflector').value
+  };
+}
+
+function displayComparisonError(message = '') {
+  const container = document.getElementById('comparison-error-messages');
+  if (!container) return;
+  container.textContent = message;
+  container.hidden = !message;
+}
+
+function getComparisonStepReason(row) {
+  if (row.doubleStep) return t('comparisonReasonDoubleStep');
+  if (row.middleAtNotch) return t('comparisonReasonMiddleNotch');
+  if (row.rightAtNotch) return t('comparisonReasonRightNotch');
+  return t('comparisonReasonFast');
+}
+
+function renderComparisonResult(result, remember = true) {
+  if (remember) lastComparisonResult = result;
+  document.getElementById('comparison-simplified-output').textContent = result.simplified.output || '-';
+  document.getElementById('comparison-historical-output').textContent = result.historical.output || '-';
+  document.getElementById('comparison-difference-summary').textContent = t('comparisonDifferenceSummary', {
+    length: result.input.length,
+    count: result.outputDifferenceCount
+  });
+  const rings = result.settings.rings.map((index) => ALPHABET[index]).join('');
+  document.getElementById('comparison-ring-summary').textContent = t('comparisonRingSummary', {
+    rings,
+    count: result.ringDifferenceCount
+  });
+
+  const body = document.getElementById('comparison-timeline-body');
+  body.replaceChildren();
+  result.rows.forEach((row) => {
+    const tr = document.createElement('tr');
+    [
+      row.step,
+      row.input,
+      row.simplifiedAfter,
+      row.before,
+      row.after,
+      getComparisonStepReason(row),
+      row.simplifiedOutput,
+      row.output
+    ].forEach((value) => {
+      const cell = document.createElement('td');
+      cell.textContent = String(value);
+      tr.appendChild(cell);
+    });
+    if (row.doubleStep) tr.classList.add('comparison-double-step');
+    body.appendChild(tr);
+  });
+}
+
+function runModelComparison() {
+  const input = Comparison.sanitizeText(document.getElementById('comparison-input').value);
+  document.getElementById('comparison-input').value = input;
+  if (!input) {
+    displayComparisonError(t('comparisonInputRequired'));
+    return;
+  }
+  try {
+    const result = Comparison.compareModels(input, getComparisonSettingsFromUI());
+    displayComparisonError();
+    renderComparisonResult(result);
+  } catch (error) {
+    displayComparisonError(error?.code === 'comparisonDuplicateRotors'
+      ? t('comparisonDuplicateRotors')
+      : t('comparisonFailed'));
+  }
+}
+
+function loadComparisonSample(type) {
+  const isDoubleStep = type === 'double-step';
+  setComparisonControl('comparison-input', isDoubleStep ? 'AAA' : 'AAAAA');
+  setComparisonControl('comparison-rotor-left', 'I');
+  setComparisonControl('comparison-rotor-middle', 'II');
+  setComparisonControl('comparison-rotor-right', 'III');
+  setComparisonControl('comparison-position-left', 'A');
+  setComparisonControl('comparison-position-middle', isDoubleStep ? 'D' : 'A');
+  setComparisonControl('comparison-position-right', isDoubleStep ? 'U' : 'A');
+  ['left', 'middle', 'right'].forEach((role) => setComparisonControl(`comparison-ring-${role}`, 'A'));
+  setComparisonControl('comparison-reflector', 'B');
+  runModelComparison();
+}
+
+function bindComparisonEvents() {
+  populateComparisonLetters();
+  document.getElementById('comparison-run-btn')?.addEventListener('click', runModelComparison);
+  document.getElementById('comparison-known-vector-btn')?.addEventListener('click', () => loadComparisonSample('known'));
+  document.getElementById('comparison-double-step-btn')?.addEventListener('click', () => loadComparisonSample('double-step'));
+  document.getElementById('comparison-input')?.addEventListener('input', (event) => {
+    const filtered = Comparison.sanitizeText(event.target.value);
+    if (filtered !== event.target.value) event.target.value = filtered;
+  });
+  runModelComparison();
+}
+
 /**
  * Initializes the application
  */
@@ -2141,6 +2279,7 @@ function init() {
 
   bindEvents();
   bindAttackEvents();
+  bindComparisonEvents();
   setupAutoSave();
   setupRealtimeProcessing();
 

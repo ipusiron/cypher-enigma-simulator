@@ -18,9 +18,10 @@ function loadMessages() {
   return context.globalThis.CypherEnigmaMessages;
 }
 
-test('browser scripts load both cores and messages before the UI controller', () => {
+test('browser scripts load all cores and messages before the UI controller', () => {
   assert.ok(html.indexOf('logic.js') < html.indexOf('attack-core.js'));
-  assert.ok(html.indexOf('attack-core.js') < html.indexOf('messages.js'));
+  assert.ok(html.indexOf('attack-core.js') < html.indexOf('comparison-core.js'));
+  assert.ok(html.indexOf('comparison-core.js') < html.indexOf('messages.js'));
   assert.ok(html.indexOf('messages.js') < html.indexOf('main.js'));
 });
 
@@ -47,11 +48,14 @@ test('CSP stays dependency-free and rejects inline scripts', () => {
 test('input limits are declared in the UI', () => {
   assert.match(html, /id="input-text"[^>]*maxlength="20000"/);
   assert.match(html, /id="attack-ciphertext"[^>]*maxlength="200"/);
+  assert.match(html, /id="comparison-input"[^>]*maxlength="40"/);
 });
 
 test('the mobile base layout stacks scrambler controls', () => {
   assert.match(css, /\.scrambler-inputs\s*\{[^}]*flex-direction:\s*column/s);
   assert.match(css, /\.action-buttons\s*>\s*button\s*\{[^}]*width:\s*100%/s);
+  assert.match(css, /\.comparison-setting-grid[\s\S]*grid-template-columns:\s*1fr/);
+  assert.match(css, /\.comparison-table\s*\{[^}]*min-width:/s);
   assert.match(css, /@media\s*\(min-width:\s*600px\)/);
 });
 
@@ -60,6 +64,15 @@ test('the UI controller delegates processing to the pure core', () => {
   assert.match(main, /Core\.validateReflectorWiring/);
   assert.match(main, /Attack\.createSearchState/);
   assert.match(main, /Attack\.advanceSearch/);
+  assert.match(main, /Comparison\.compareModels/);
+});
+
+test('model comparison exposes samples, timeline, and scoped evidence', () => {
+  assert.match(html, /id="tab-comparison-button"/);
+  assert.match(html, /id="comparison-known-vector-btn"/);
+  assert.match(html, /id="comparison-double-step-btn"/);
+  assert.match(html, /id="comparison-timeline-body"/);
+  assert.match(html, /H\.Dv\.g\. 14 \(1940\)/);
 });
 
 test('search progress, cancellation, and narrowing table are available', () => {

@@ -6,13 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Cypher Enigma Simulator - a simplified Enigma-style cipher simulator for solving and analyzing Cypher puzzle challenges. This is an educational/analytical tool, NOT a historically accurate Enigma machine.
 
-**Intentionally omitted features:** Ring settings, double-stepping, military variants.
+The main Cypher-oriented cipher intentionally omits ring settings and double-stepping. The independent comparison model implements those two behaviors in a bounded Enigma I educational subset. Military variants and operating procedures remain out of scope.
 
 ## Tech Stack
 
 - Static web app (GitHub Pages deployment)
 - Vanilla JavaScript only - no frameworks or external dependencies
-- Single-page architecture: `index.html`, `style.css`, `logic.js`, `attack-core.js`, `messages.js`, `main.js`
+- Single-page architecture: `index.html`, `style.css`, `logic.js`, `attack-core.js`, `comparison-core.js`, `messages.js`, `main.js`
 
 ## Development
 
@@ -93,6 +93,16 @@ With the reflector disabled, encrypt traverses the scramblers forward once and d
 - Known-plaintext ciphertext limit: 200 characters
 - Exact match counts are retained, but no more than 100 candidate cards are inserted into the DOM
 - Cancelled results are labelled as partial and cover only checked combinations
+
+## Model Comparison Feature
+
+- `comparison-core.js` is independent of the main cipher state and exports pure functions for Node and browser use.
+- Historical subset: three distinct rotors selected from I-V, reflector B/C, starting positions, ring settings, pre-key stepping, and middle-rotor double-stepping.
+- Deliberate omissions: plugboard, machine variants, key sheets, daily/message-key procedures, and traffic handling.
+- UI input accepts A-Z only and is limited to 40 letters.
+- Reference vector: rotors I-II-III, reflector B, start AAA, rings AAA, `AAAAA → BDZGO`.
+- Double-step fixture: rotors I-II-III from ADU move through ADV, AEW, and BFX for three keypresses.
+- The comparison maps the same left/middle/right rotor choice into the existing Cypher-oriented core without changing `logic.js` behavior.
 
 ## UI Skills
 
