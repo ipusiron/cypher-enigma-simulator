@@ -2712,7 +2712,7 @@ function displayAttackResults(summary, searchInfo, cancelled = false, remember =
       <div class="result-header">
         <span class="result-number">#${index + 1}</span>
         <span class="result-positions">${escapeHtml(candidate.positionsString)}</span>
-        <button type="button" class="btn-apply-result" data-positions="${escapeHtml(candidate.positionsString)}">
+        <button type="button" class="btn-apply-result btn-go-tab" data-positions="${escapeHtml(candidate.positionsString)}">
           ${escapeHtml(t('applyToSettings'))}
         </button>
       </div>
@@ -2739,7 +2739,7 @@ function displayAttackResults(summary, searchInfo, cancelled = false, remember =
   // Bind apply buttons
   resultsContainer.querySelectorAll('.btn-apply-result').forEach(btn => {
     btn.addEventListener('click', () => {
-      showApplyConfirmDialog(btn.dataset.positions);
+      showApplyConfirmDialog(btn.dataset.positions, btn);
     });
   });
 
@@ -2759,13 +2759,16 @@ function displayAttackResults(summary, searchInfo, cancelled = false, remember =
 
 // Store pending positions for apply confirm dialog
 let pendingApplyPositions = null;
+// Button that opened the apply confirm dialog (focus returns here on cancel)
+let applyConfirmTrigger = null;
 
 /**
  * Shows apply confirm dialog
  * @param {string} positionsString - Positions string (e.g., "A-B-C")
  */
-function showApplyConfirmDialog(positionsString) {
+function showApplyConfirmDialog(positionsString, trigger) {
   pendingApplyPositions = positionsString;
+  applyConfirmTrigger = trigger || null;
 
   const modal = document.getElementById('apply-confirm-modal');
   const message = document.getElementById('apply-confirm-message');
@@ -2773,18 +2776,37 @@ function showApplyConfirmDialog(positionsString) {
   if (modal && message) {
     message.textContent = t('applyPositionsQuestion', { positions: positionsString });
     modal.hidden = false;
+    document.getElementById('apply-confirm-ok')?.focus();
   }
 }
 
 /**
  * Closes apply confirm dialog
  */
-function closeApplyConfirmDialog() {
+function closeApplyConfirmDialog(options = {}) {
   const modal = document.getElementById('apply-confirm-modal');
   if (modal) {
     modal.hidden = true;
   }
   pendingApplyPositions = null;
+  const trigger = applyConfirmTrigger;
+  applyConfirmTrigger = null;
+  if (options.restoreFocus !== false && trigger && trigger.isConnected) {
+    trigger.focus();
+  }
+}
+
+const TAB_FOCUS_HEADINGS = Object.freeze({
+  cipher: 'cipher-settings-heading'
+});
+
+/**
+ * Moves focus to the heading of a tab panel after a button switched tabs
+ * @param {string} tabId - Tab identifier (e.g., 'cipher')
+ */
+function focusTabHeading(tabId) {
+  const heading = TAB_FOCUS_HEADINGS[tabId] && document.getElementById(TAB_FOCUS_HEADINGS[tabId]);
+  if (heading) heading.focus();
 }
 
 /**
@@ -2862,11 +2884,12 @@ function applyAttackResult() {
     }
   }
 
-  // Close dialog
-  closeApplyConfirmDialog();
+  // Close dialog (focus moves to the destination tab instead of the trigger)
+  closeApplyConfirmDialog({ restoreFocus: false });
 
-  // Switch to cipher tab
+  // Switch to cipher tab and move focus to its heading
   switchTab('cipher');
+  focusTabHeading('cipher');
 
   // Save settings
   syncPresetSelections();
@@ -3083,7 +3106,7 @@ function bindAttackEvents() {
   const applyConfirmModal = document.getElementById('apply-confirm-modal');
 
   if (applyConfirmCancel) {
-    applyConfirmCancel.addEventListener('click', closeApplyConfirmDialog);
+    applyConfirmCancel.addEventListener('click', () => closeApplyConfirmDialog());
   }
 
   if (applyConfirmOk) {
@@ -3094,7 +3117,7 @@ function bindAttackEvents() {
   if (applyConfirmModal) {
     const overlay = applyConfirmModal.querySelector('.modal-overlay');
     if (overlay) {
-      overlay.addEventListener('click', closeApplyConfirmDialog);
+      overlay.addEventListener('click', () => closeApplyConfirmDialog());
     }
 
     // Close on Escape key
