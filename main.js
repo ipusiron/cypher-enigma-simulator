@@ -25,6 +25,22 @@ function interpolate(template, variables = {}) {
   ));
 }
 
+/**
+ * Writes text to a live region only when it changes, so assistive technology
+ * is not asked to re-announce identical text. Returns true when written.
+ */
+function setLiveText(element, text) {
+  if (!element) return false;
+  const next = String(text ?? '');
+  if (element.textContent === next) return false;
+  element.textContent = next;
+  return true;
+}
+
+function announceAttackStatus(text) {
+  return setLiveText(document.getElementById('attack-progress-announcement'), text);
+}
+
 function t(key, variables = {}) {
   const dictionary = Messages[currentLanguage] || Messages.ja;
   return interpolate(dictionary[key] || Messages.ja[key] || key, variables);
@@ -2169,7 +2185,7 @@ function getComparisonSettingsFromUI() {
 function displayComparisonError(message = '') {
   const container = document.getElementById('comparison-error-messages');
   if (!container) return;
-  container.textContent = message;
+  setLiveText(container, message);
   container.hidden = !message;
 }
 
@@ -2610,9 +2626,16 @@ function updateAttackProgress(summary, options = {}) {
     percent,
     matches: summary.matchCount.toLocaleString(currentLanguage)
   };
-  if (options.cancelled) progressText.textContent = t('searchCancelled', variables);
-  else if (options.complete) progressText.textContent = t('searchComplete', variables);
-  else progressText.textContent = t('searchProgress', variables);
+  // Visual text updates every batch; the live region only hears the final state.
+  if (options.cancelled) {
+    progressText.textContent = t('searchCancelled', variables);
+    announceAttackStatus(progressText.textContent);
+  } else if (options.complete) {
+    progressText.textContent = t('searchComplete', variables);
+    announceAttackStatus(progressText.textContent);
+  } else {
+    progressText.textContent = t('searchProgress', variables);
+  }
 }
 
 function displayNarrowingSummary(summary, cancelled = false) {
@@ -2935,6 +2958,7 @@ async function runKnownPlaintextAttack() {
   const token = { state, cancelled: false };
   activeAttackSearch = token;
   setAttackControlsRunning(true);
+  announceAttackStatus(t('searching'));
   updateAttackProgress(Attack.getSearchSummary(state));
 
   try {
@@ -2952,6 +2976,7 @@ async function runKnownPlaintextAttack() {
   } catch (error) {
     console.error(error);
     displayAttackErrors([t('searchFailed')]);
+    announceAttackStatus(t('searchFailed'));
     document.getElementById('attack-progress').hidden = true;
   } finally {
     if (activeAttackSearch === token) activeAttackSearch = null;
