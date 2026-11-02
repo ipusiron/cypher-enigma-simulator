@@ -100,7 +100,7 @@
     <div id="tab-cipher" class="tab-panel active" role="tabpanel" aria-labelledby="tab-cipher-button">
       <!-- 1. Settings Section -->
       <section class="settings">
-      <h2 class="section-title" data-i18n="settings">設定</h2>
+      <h2 class="section-title" id="cipher-settings-heading" tabindex="-1" data-i18n="settings">設定</h2>
       <fieldset class="toggleable" data-target="plugboard-inputs">
         <legend>
           <label class="toggle-label">
@@ -602,10 +602,11 @@
         <h2 data-i18n="applySettingsTitle">設定を適用</h2>
         <div class="modal-body">
           <p id="apply-confirm-message" data-i18n="applySettingsQuestion">スクランブラーの初期位置を設定しますか？</p>
+          <p id="apply-confirm-note" class="apply-confirm-note" data-i18n="applyReplacesNote">適用すると「暗号化・復号」タブへ移り、そのタブのプラグボード・スクランブラー・リフレクターの設定が、解析支援タブの設定とこの候補の初期位置で置き換わります。</p>
         </div>
         <div class="modal-actions">
           <button type="button" id="apply-confirm-cancel" class="btn-secondary" data-i18n="cancel">キャンセル</button>
-          <button type="button" id="apply-confirm-ok" class="btn-primary" data-i18n="apply">適用</button>
+          <button type="button" id="apply-confirm-ok" class="btn-primary btn-go-tab" data-i18n="applyAndGoCipher">適用して「暗号化・復号」へ →</button>
         </div>
       </div>
     </div>

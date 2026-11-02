@@ -328,6 +328,18 @@ header .scope-note {
   min-width: 100px;
 }
 
+.modal-actions .btn-secondary {
+  white-space: nowrap;
+}
+
+#apply-confirm-modal .modal-actions {
+  flex-wrap: wrap;
+}
+
+.modal-actions .btn-go-tab {
+  flex: 1 1 12rem;
+}
+
 /* =================================
    4. Typography
    ================================= */
@@ -1283,22 +1295,37 @@ input.grid-plain-input:focus {
   border-radius: 0.25rem;
 }
 
+/* Navigation-style button: applies settings and moves to another tab */
 .btn-apply-result {
   min-height: 2.75rem;
   margin-left: auto;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.75rem;
-  color: #28a745;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1f6fc1;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
   background-color: transparent;
-  border: 1px solid #28a745;
+  border: none;
   border-radius: 0.25rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .btn-apply-result:hover {
-  background-color: #28a745;
-  color: #fff;
+  background-color: #e7f3ff;
+  color: #174f8a;
+}
+
+.modal-confirm .modal-body .apply-confirm-note {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.section-title[tabindex="-1"]:focus-visible {
+  outline: 3px solid #1f6fc1;
+  outline-offset: 2px;
 }
 
 .result-match-reason {

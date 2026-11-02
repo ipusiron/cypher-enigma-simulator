@@ -90,3 +90,25 @@ test('CI runs the complete Node test suite', () => {
   assert.match(workflow, /node-version:\s*22/);
   assert.match(workflow, /npm test/);
 });
+
+test('the apply-to-settings flow says it moves to the Encrypt / decrypt tab', () => {
+  const messages = loadMessages();
+  for (const lang of ['ja', 'en']) {
+    for (const key of ['applyToSettings', 'applyAndGoCipher']) {
+      assert.match(messages[lang][key], /→$/, `${lang}.${key} ends with an arrow`);
+      assert.ok(messages[lang][key].includes(messages[lang].tabCipher), `${lang}.${key} names the destination tab`);
+    }
+    assert.ok(messages[lang].applyReplacesNote.includes(messages[lang].tabCipher), `${lang}.applyReplacesNote names the destination tab`);
+  }
+  assert.match(html, /id="apply-confirm-note"[^>]*data-i18n="applyReplacesNote"/);
+  assert.match(html, /id="apply-confirm-ok"[^>]*data-i18n="applyAndGoCipher"/);
+});
+
+test('switching tabs from the apply dialog moves focus to the destination heading', () => {
+  assert.match(html, /<h2[^>]*id="cipher-settings-heading"[^>]*tabindex="-1"/);
+  assert.match(main, /cipher:\s*'cipher-settings-heading'/);
+  assert.match(main, /switchTab\('cipher'\);\s*focusTabHeading\('cipher'\);/);
+  assert.match(main, /closeApplyConfirmDialog\(\{ restoreFocus: false \}\)/);
+  assert.match(main, /showApplyConfirmDialog\(btn\.dataset\.positions, btn\)/);
+  assert.match(main, /btn\.setAttribute\('aria-selected', String\(active\)\)/);
+});
